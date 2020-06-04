@@ -1,0 +1,7 @@
+ &setup
+  tversion=4,
+  analysis_time = 2008051112,
+  dataPath = 'radardata',
+  bkfile = 'wrfout_d01_2008-05-11_12:00:00',
+ /
+
