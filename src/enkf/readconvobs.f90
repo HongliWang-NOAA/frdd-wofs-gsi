@@ -17,6 +17,11 @@ module readconvobs
 ! program history log:
 !   2009-02-23  Initial version.
 !
+!   2016-02-15  Johnson, Y. Wang, X. Wang - add codes to read in radial velocity and 
+!                                           reflectivity observations and observation 
+!                                           priors for radar DA, POC: xuguang.wang@ou.edu
+!   2016-09-25  Thomas Jones - Add variables necessary for CWP assimilation 
+!                            - For dbz, vel, and cwp: use orginal error vs. adjusted error (14, 16)
 ! attributes:
 !   language: f95
 !
@@ -40,8 +45,9 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     character(len=3) :: obtype
     integer(i_kind) iunit, nchar, nreal, ii, mype,ios, idate, i, ipe
     integer(i_kind), intent(out) :: num_obs_tot
-    integer(i_kind),dimension(2):: nn,nobst, nobsps, nobsq, nobsuv, nobsgps, &
-         nobstcp,nobstcx,nobstcy,nobstcz,nobssst, nobsspd, nobsdw, nobsrw, nobspw, nobssrw
+    integer(i_kind),dimension(2):: nn,nobst, nobsps, nobsq, nobsuv, nobsgps, nobstd, &
+         nobstcp,nobstcx,nobstcy,nobstcz,nobssst, nobsspd, nobsdw, nobsrw, nobspw, &
+         nobssrw, nobsdbz, nobscwp,nobstd2 !JJH 
     character(8),allocatable,dimension(:):: cdiagbuf
     real(r_single),allocatable,dimension(:,:)::rdiagbuf
     real(r_kind) :: errorlimit,errorlimit2,error,pres,obmax
@@ -55,6 +61,8 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     errorlimit2_bnd = 1.e3_r_kind*errorlimit2_obs
     num_obs_tot = 0
     nobst = 0
+    nobstd = 0 !JJH
+    nobstd2 = 0 !JJH
     nobsq = 0
     nobsps = 0
     nobsuv = 0
@@ -62,6 +70,8 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
     nobsspd = 0
     nobsdw = 0
     nobsrw = 0 
+    nobsdbz = 0
+    nobscwp = 0
     nobspw = 0
     nobsgps = 0
     nobssrw = 0
@@ -129,7 +139,7 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
        if (obtype == '  t') then
           nobst = nobst + nn
           num_obs_tot = num_obs_tot + nn(2)
-       else if (obtype == ' uv') then
+       else if (obtype == ' uv') then !JJH
           nobsuv = nobsuv + 2*nn
           num_obs_tot = num_obs_tot + 2*nn(2)
        else if (obtype == ' ps') then
@@ -137,6 +147,12 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
            num_obs_tot = num_obs_tot + nn(2)
        else if (obtype == '  q') then
           nobsq = nobsq + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == ' td') then ! dew point temperature -JJH
+          nobstd = nobstd + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'td2') then ! 2m-dew point temperature -JJH
+          nobstd2 = nobstd2 + nn
           num_obs_tot = num_obs_tot + nn(2)
        else if (obtype == 'spd') then
           nobsspd = nobsspd + nn
@@ -150,6 +166,12 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
           num_obs_tot = num_obs_tot + nn(2)
        else if (obtype == ' rw') then
           nobsrw = nobsrw + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'dbz') then
+          nobsdbz = nobsdbz + nn
+          num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'cwp') then
+          nobscwp = nobscwp + nn
           num_obs_tot = num_obs_tot + nn(2)
        else if (obtype == 'gps') then
           nobsgps = nobsgps + nn
@@ -184,6 +206,8 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
           print *,num_obs_tot,' obs in diag_conv_ges file'
           write(6,*)'columns below obtype,nread, nkeep'
           write(6,100) 't',nobst(1),nobst(2)
+          write(6,100) ' td',nobstd(1),nobstd(2) !td -JJH
+          write(6,100) 'td2',nobstd2(1),nobstd2(2) !td2 -JJH
           write(6,100) 'q',nobsq(1),nobsq(2)
           write(6,100) 'ps',nobsps(1),nobsps(2)
           write(6,100) 'uv',nobsuv(1),nobsuv(2)
@@ -193,6 +217,8 @@ subroutine get_num_convobs(obspath,datestring,num_obs_tot,id)
           write(6,100) 'dw',nobsdw(1),nobsdw(2)
           write(6,100) 'srw',nobsrw(1),nobssrw(2)
           write(6,100) 'rw',nobssrw(1),nobsrw(2)
+          write(6,100) 'dbz',nobsdbz(1),nobsdbz(2)
+          write(6,100) 'cwp',nobscwp(1),nobscwp(2)
           write(6,100) 'tcp',nobstcp(1),nobstcp(2)
           if (nobstcx(2) .gt. 0) then
              write(6,100) 'tcx',nobstcx(1),nobstcx(2)
@@ -366,7 +392,145 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
 !        rdiagbuf(17,ii) = data(itob,i)       ! temperature observation (K)
 !        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
 !        rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
-    else if (obtype == ' uv') then
+     else if (obtype == ' td') then ! dew point temperature - added by JJH
+       allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
+       read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+       if(twofiles)then
+         allocate(cdiagbuf2(ii))
+         read(iunit2)cdiagbuf2(1:ii),rdiagbuf2(:,1:ii)
+       end if
+
+       do n=1,ii
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2)cycle
+          if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
+               rdiagbuf(6,n) < 0.001_r_kind .or. &
+               rdiagbuf(6,n) > 1200._r_kind) cycle
+          nob = nob + 1
+          if(twofiles)then
+            if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. &
+                  abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
+                  abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. &
+                  abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
+               write (6,*) ' td conv ob data inconsistency '
+               write (6,*) (rdiagbuf(i,n),i=1,8)
+               write (6,*) (rdiagbuf2(i,n),i=1,8)
+               call stop2(-98)
+             end if
+          else
+            rdiagbuf2(18,n) = rdiagbuf(18,n)
+            rdiagbuf2(19,n) = rdiagbuf(19,n)
+          end if
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_obs(nob) = rdiagbuf(17,n)
+          h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n)
+          x_type(nob) = obtype
+       enddo
+       deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
+       if(twofiles)deallocate(cdiagbuf2)
+!        cdiagbuf(ii)    = station_id         ! station id
+!        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+!        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+!        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+!        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+!        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+!        rdiagbuf(6,ii)  = prest              ! observation pressure (hPa)
+!        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
+!        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+!        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+!        rdiagbuf(10,ii) = data(iqt,i)        ! setup qc or event mark (currently qtflg only)
+!        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+!        rdiagbuf(12,ii) = -one               ! analysis usage flag (1=use,-1=not used)
+!        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+!        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
+!        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
+!        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
+
+!        rdiagbuf(17,ii) = data(itdob,i)       ! dew point temperature observation (K)
+!        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
+!        rdiagbuf(19,ii) = tdob-tdges           ! obs-ges w/o bias correction (K)
+     else if (obtype == 'td2') then ! 2m-dew point temperature - added by JJH
+       allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
+       read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+       if(twofiles)then
+         allocate(cdiagbuf2(ii))
+         read(iunit2)cdiagbuf2(1:ii),rdiagbuf2(:,1:ii)
+       end if
+       do n=1,ii
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2)cycle
+          if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
+               rdiagbuf(6,n) < 0.001_r_kind .or. &
+               rdiagbuf(6,n) > 1200._r_kind) cycle
+          nob = nob + 1
+          if(twofiles)then
+            if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. &
+                  abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
+                  abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. &
+                  abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
+               write (6,*) ' 2m-td conv ob data inconsistency '
+               write (6,*) (rdiagbuf(i,n),i=1,8)
+               write (6,*) (rdiagbuf2(i,n),i=1,8)
+               call stop2(-98)
+             end if
+          else
+            rdiagbuf2(18,n) = rdiagbuf(18,n)
+            rdiagbuf2(19,n) = rdiagbuf(19,n)
+          end if
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_obs(nob) = rdiagbuf(17,n)
+          h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n)
+          x_type(nob) = obtype
+       enddo
+       deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
+       if(twofiles)deallocate(cdiagbuf2)
+!        cdiagbuf(ii)    = station_id         ! station id
+
+!        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+!        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+
+!        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+!        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+!        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+!        rdiagbuf(6,ii)  = r10*exp(data(ipres,i)) ! observation pressure (hPa)
+!        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
+!        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+!        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+!        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
+!        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+!        rdiagbuf(12,ii) = one                ! analysis usage flag (1=use,-1=not used)
+!        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+!        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
+!        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
+!        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
+
+!        rdiagbuf(17,ii) = data(itd2m,i)       ! TD2M observation (K)
+!        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
+!        rdiagbuf(19,ii) = data(itd2m,i)-td2mges! obs-ges w/o bias correction (K) (future slot)
+     else if (obtype == ' uv') then
        allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
        read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
        if(twofiles)then
@@ -453,6 +617,9 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
 !        rdiagbuf(21,ii) = dvdiff             ! v obs-ges used in analysis (m/s)
 !        rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
 !        rdiagbuf(23,ii) = factw              ! 10m wind reduction factor
+
+!!! PUT IN DEWPOINT
+
     else if (obtype == ' ps') then
        allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
        read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
@@ -983,6 +1150,8 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
           else
             rdiagbuf2(18,n) = rdiagbuf(18,n)
             rdiagbuf2(19,n) = rdiagbuf(19,n)
+            rdiagbuf2(21,n) = rdiagbuf(21,n)
+            rdiagbuf2(22,n) = rdiagbuf(22,n)
           end if
           x_code(nob) = rdiagbuf(1,n)
           x_lat(nob) = rdiagbuf(3,n)
@@ -994,12 +1163,14 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
           else
             x_errorig(nob) = 1.e10_r_kind
           endif
-          x_err(nob) = (one/rdiagbuf(16,n))**2
+          !x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_err(nob) = (one/rdiagbuf(14,n))**2  !ORIG ERROR
           x_obs(nob) = rdiagbuf(17,n)
           h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
-          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n)
-          !h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
-          x_type(nob) = obtype 
+          !h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
+          !x_type(nob) = obtype 
+          x_type(nob) = 'rw'
        enddo
        deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
        if(twofiles)deallocate(cdiagbuf2)
@@ -1028,6 +1199,113 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, h_x_ensmean, h_xnobc,
 !        rdiagbuf(20,ii)=data(iazm,i)*rad2deg ! azimuth angle
 !        rdiagbuf(21,ii)=data(itilt,i)*rad2deg! tilt angle
 !        rdiagbuf(22,ii) = factw              ! 10m wind reduction factor
+
+    else if (obtype == 'dbz') then !!modified  !READ IN REFLECTIVITY FILE
+       allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
+       read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+       if(twofiles)then
+         allocate(cdiagbuf2(ii))
+         read(iunit2)cdiagbuf2(1:ii),rdiagbuf2(:,1:ii)
+       end if
+       do n=1,ii
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2) then
+             cycle
+          endif
+
+          nob = nob + 1
+          if(twofiles)then
+           if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
+              abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
+               write (6,*) ' dbz conv ob data inconsistency '
+               write (6,*) (rdiagbuf(i,n),i=1,8)
+               write (6,*) (rdiagbuf2(i,n),i=1,8)
+               call stop2(-98)
+             end if
+          else
+            rdiagbuf2(18,n) = rdiagbuf(18,n)
+            rdiagbuf2(19,n) = rdiagbuf(19,n)
+            rdiagbuf2(21,n) = rdiagbuf(21,n)
+            if(nreal.ge.22) then
+            rdiagbuf2(22,n) = rdiagbuf(22,n)
+            endif
+          end if
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(14,n))**2  ! ORIGINAL ERROR
+          !x_err(nob) = (one/rdiagbuf(16,n))**2  ! ADJUSTED ERROR
+          x_obs(nob) = rdiagbuf(17,n)
+  !        h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n) !bug here found by yongzuo
+          h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
+          x_type(nob) = obtype
+       enddo
+
+       deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
+       if(twofiles)deallocate(cdiagbuf2)
+
+    else if (obtype == 'cwp') then ! READ IN CWP FILE (TA JONES 6/25/2016)
+       allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
+       read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+       if(twofiles)then
+         allocate(cdiagbuf2(ii))
+         read(iunit2)cdiagbuf2(1:ii),rdiagbuf2(:,1:ii)
+       end if
+       do n=1,ii
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2) then
+             cycle
+          endif
+          nob = nob + 1
+          if(twofiles)then
+           if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5 .or. &
+              abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5 .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5)then
+               write (6,*) ' cwp conv ob data inconsistency '
+               write (6,*) (rdiagbuf(i,n),i=1,8)
+               write (6,*) (rdiagbuf2(i,n),i=1,8)
+               call stop2(-98)
+             end if
+          else
+            rdiagbuf2(18,n) = rdiagbuf(18,n)
+            rdiagbuf2(19,n) = rdiagbuf(19,n)
+            rdiagbuf2(21,n) = rdiagbuf(21,n)
+            if(nreal.ge.22) then
+            rdiagbuf2(22,n) = rdiagbuf(22,n)
+            endif
+          end if
+          x_code(nob) = rdiagbuf(1,n)
+          x_lat(nob) = rdiagbuf(3,n)
+          x_lon(nob) = rdiagbuf(4,n)
+          x_press(nob) = rdiagbuf(6,n)
+          x_time(nob) = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(14,n))**2  ! ORIGINAL ERROR
+          !x_err(nob) = (one/rdiagbuf(16,n))**2  ! ADJUSTED ERROR
+          x_obs(nob) = rdiagbuf(17,n)
+  !        h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf2(18,n) !bug here found by yongzuo
+          h_x_ensmean(nob) = rdiagbuf(17,n)-rdiagbuf(18,n)
+          h_xnobc(nob) = rdiagbuf(17,n)-rdiagbuf2(19,n)
+          x_type(nob) = obtype
+       enddo
+
+       deallocate(cdiagbuf,rdiagbuf,rdiagbuf2)
+       if(twofiles)deallocate(cdiagbuf2)
+
+
     else if (obtype == 'gps') then
        allocate(cdiagbuf(ii),rdiagbuf(nreal,ii),rdiagbuf2(nreal,ii))
        read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)

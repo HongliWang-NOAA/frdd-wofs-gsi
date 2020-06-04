@@ -163,8 +163,8 @@ contains
     integer(i_long) dummy9(9)
     real(r_single) pt_regional_single
     real(r_kind):: work_prsl,work_prslk
-    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
-    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_xlon,i_xlat,i_tt,ktt
+    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc,i_qh, i_dbz
+    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_xlon,i_xlat,i_tt,ktt,kqh, kdbz
     integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
     integer(i_kind) ier, istatus
     integer(i_kind) n_actual_clouds
@@ -187,10 +187,12 @@ contains
     real(r_kind), pointer :: ges_qr (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qs (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qg (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qh (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qni(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL()
-  
+    real(r_kind), pointer :: ges_dbz(:,:,:)=>NULL()  
+
     integer(i_kind) iadd
     character(132) memoryorder
   
@@ -199,7 +201,9 @@ contains
   !          im -- number of x-points on C-grid
   !          jm -- number of y-points on C-grid
   !          lm -- number of vertical levels ( = nsig for now)
-  
+ 
+   print*, 'INSIDE READ MASS'
+ 
        num_doubtful_sfct=0
   
        rad2deg_single=45.0_r_single/atan(1.0_r_single)
@@ -214,9 +218,12 @@ contains
        endif
   
        if(mype==0) write(6,*)' in read_wrf_mass_binary_guess, im,jm,lm=',im,jm,lm
-  
+
+ 
   !    Inquire about cloud guess fields
        call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+
+        print*, 'NCLOUDS = ', n_actual_clouds
        if (n_actual_clouds>0) then
   !       Get pointer for each of the hydrometeors from guess at time index "it"
           ier=0
@@ -226,9 +233,12 @@ contains
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qh, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz',ges_dbz, istatus );ier=ier+istatus
+          
           if (ier/=0) n_actual_clouds=0
        end if
   
@@ -308,9 +318,12 @@ contains
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qh', ges_qh, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz', ges_dbz, istatus );ier=ier+istatus
+
              if (ier/=0 .and. mype == 0) then
                  write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
                  l_cloud_analysis=.false.
@@ -631,7 +644,24 @@ contains
                 if(mype == 0.and.k==1) write(6,*)' qg i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
-    
+ 
+
+             i_qh=i+1
+             read(lendian_in) n_position,memoryorder
+             do k=1,lm
+                i=i+1                                                       ! qh(k)
+                if(trim(memoryorder)=='XZY') then
+                   iadd=0
+                   kord(i)=lm
+                else
+                   iadd=(k-1)*im*jm*4
+                   kord(i)=1
+                end if
+                offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+                if(mype == 0.and.k==1) write(6,*)' qh i,igtype(i),offset(i),kord(i) = ', &
+                                                                i,igtype(i),offset(i),kord(i)
+             end do
+   
              i_qnr=i+1
              read(lendian_in) n_position,memoryorder
              do k=1,lm
@@ -647,7 +677,8 @@ contains
                 if(mype == 0.and.k==1) write(6,*)' qnr i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
-  
+ 
+ 
              i_qni=i+1
              read(lendian_in) n_position,memoryorder
              do k=1,lm
@@ -678,6 +709,23 @@ contains
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1;kdim(i)=lm
                 if(mype == 0.and.k==1) write(6,*)' qnc i,igtype(i),offset(i),kord(i) = ', &
                                                               i,igtype(i),offset(i),kord(i)
+             end do
+
+
+             i_dbz=i+1
+             read(lendian_in) n_position,memoryorder
+             do k=1,lm
+                i=i+1                                                       !dbz(k)
+                if(trim(memoryorder)=='XZY') then
+                   iadd=0
+                   kord(i)=lm
+                else
+                   iadd=(k-1)*im*jm*4
+                   kord(i)=1
+                end if
+                offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+                if(mype == 0.and.k==1) write(6,*)' dbz i,igtype(i),offset(i),kord(i) = ', &
+                                                                i,igtype(i),offset(i),kord(i)
              end do
 
              i_tt=i+1
@@ -861,7 +909,8 @@ contains
           end if
   
   ! for cloud analysis
-          if(l_cloud_analysis .and. n_actual_clouds>0) then
+  if(mype==0) write(6,*) 'START READING CLOUD VARS', l_cloud_analysis, n_actual_clouds  
+        if(l_cloud_analysis .and. n_actual_clouds>0) then
   !                                    read qc
              if(kord(i_qc)/=1) then
                 allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -941,7 +990,24 @@ contains
                    jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qg,i_qg+lm-1)
                 deallocate(jbuf)
              end if
-  
+ 
+  !                                    read qh
+             if(kord(i_qh)/=1) then
+                allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+                this_offset=offset(i_qh)+(jbegin(mype)-1)*4*im*lm
+                this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+                call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                    mpi_integer,status,ierror)
+             if(byte_swap) then
+                num_swap=this_length
+                call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+             end if
+                call this%transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                   jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qh,i_qh+lm-1)
+                deallocate(jbuf)
+             end if
+
+ 
   !                                    read qnr
              if(kord(i_qnr)/=1) then
                 allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -990,6 +1056,22 @@ contains
                 deallocate(jbuf)
              end if
 
+
+  !                                    read dbz
+             if(kord(i_dbz)/=1) then
+                allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+                this_offset=offset(i_dbz)+(jbegin(mype)-1)*4*im*lm
+                this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+                call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                    mpi_integer,status,ierror)
+             if(byte_swap) then
+                num_swap=this_length
+                call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+             end if
+                call this%transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype),&
+                   jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_dbz,i_dbz+lm-1)
+                deallocate(jbuf)
+             end if
 
   !                                    read tt  radar temperature tendency
              if(kord(i_tt)/=1) then
@@ -1065,9 +1147,11 @@ contains
              kqs=i_qs-1
              kqi=i_qi-1
              kqg=i_qg-1
+             kqh=i_qh-1
              kqnr=i_qnr-1
              kqni=i_qni-1
              kqnc=i_qnc-1
+             kdbz=i_dbz-1
              ktt=i_tt-1
           endif
   !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
@@ -1089,9 +1173,11 @@ contains
                 kqs=kqs+1
                 kqi=kqi+1
                 kqg=kqg+1
+                kqh=kqh+1
                 kqnr=kqnr+1
                 kqni=kqni+1
                 kqnc=kqnc+1
+                kdbz=kdbz+1
                 ktt=ktt+1
              endif
              do i=1,lon2
@@ -1114,9 +1200,11 @@ contains
                       ges_qr(j,i,k) = all_loc(j,i,kqr)
                       ges_qs(j,i,k) = all_loc(j,i,kqs)
                       ges_qg(j,i,k) = all_loc(j,i,kqg)
+                      ges_qh(j,i,k) = all_loc(j,i,kqh)
                       ges_qnr(j,i,k)= all_loc(j,i,kqnr)
                       ges_qni(j,i,k)= all_loc(j,i,kqni)
                       ges_qnc(j,i,k)= all_loc(j,i,kqnc)
+                      ges_dbz(j,i,k) = all_loc(j,i,kdbz)
   !                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
                       ges_tten(j,i,k,it) = -20.0_r_single
                       if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
@@ -1252,7 +1340,7 @@ contains
             0,mpi_comm_world,ierror)
        if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
        if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
+       if(mype==0) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
             minval(sfct),maxval(sfct)
        
        deallocate(all_loc,igtype,kdim,kord)
@@ -1336,13 +1424,14 @@ contains
     use kinds, only: r_kind,r_single,i_kind
     use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
     use guess_grids, only: &
-         fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
+         fact10,veg_type,veg_frac,soil_type,sfct,sno,soil_temp,soil_moi,&
          isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
     use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
          nsig,nsig_soil,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll,eta2_ll,aeta2_ll
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
     use constants, only: r0_01, tiny_r_kind
     use gsi_io, only: lendian_in
+    use control_vectors, only : l_w_exist, l_model_dbz
     use chemmod, only: laeroana_gocart,nh4_mfac,oc_mfac,&
          aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soiltq_nudge
@@ -1363,7 +1452,7 @@ contains
     real(r_kind),parameter:: rough_default=0.05_r_kind
   
   ! Declare local variables
-    integer(i_kind) kt,kq,ku,kv
+    integer(i_kind) kt,kq,ku,kv,kw,kw0,kdbz
   
   ! MASS variable names stuck in here
   
@@ -1379,7 +1468,7 @@ contains
     integer(i_kind) ifld,im,jm,lm,num_mass_fields,num_mass_fields_base
     integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
     integer(i_kind) i,icount,icount_prev,it,j,k
-    integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
+    integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_w,i_sno,i_u10,i_v10,i_smois,i_tslb
     integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
     integer(i_kind) isli_this
     real(r_kind) psfc_this,psfc_this_dry,sm_this,xice_this
@@ -1389,8 +1478,8 @@ contains
     real(r_kind) deltasigma,deltasigmac4h
     real(r_kind):: work_prsl,work_prslk
     integer(i_kind),allocatable :: i_chem(:),kchem(:)
-    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
-    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_xlon,i_xlat,i_tt,ktt
+    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc, i_qh, i_dbz
+    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,kqh,i_xlon,i_xlat,i_tt,ktt
     integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
     integer(i_kind) ier, istatus
     integer(i_kind) n_actual_clouds
@@ -1411,6 +1500,7 @@ contains
     real(r_kind), pointer :: ges_z_it  (:,:  )=>NULL()
     real(r_kind), pointer :: ges_u_it  (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_v_it  (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_w_it  (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_tv_it (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_q_it  (:,:,:)=>NULL()
   
@@ -1419,10 +1509,12 @@ contains
     real(r_kind), pointer :: ges_qr (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qs (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qg (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qh (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qni(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL()
-  
+    real(r_kind), pointer :: ges_dbz(:,:,:)=>NULL()  
+
     real(r_kind), pointer :: ges_sulf(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_bc1(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_bc2(:,:,:)=>NULL()
@@ -1458,20 +1550,39 @@ contains
   
   !    Inquire about cloud guess fields
        call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
-       if (n_actual_clouds>0) then
+
+        if (n_actual_clouds>0) then
   !       Get pointer for each of the hydrometeors from guess at time index "it"
           it=ntguessig
           ier=0
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+
+          !print*, 'QL', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+!print*, 'QI', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+!print*, 'QR', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+!print*, 'QS', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+!print*, 'QG', ier
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qh', ges_qh, istatus );ier=ier+istatus
+!print*, 'QH', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+!print*, 'QNR', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+!print*, 'QNI', ier
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+!print*, 'QNC', ier
           if (ier/=0) n_actual_clouds=0
+
        end if
+
+       if( l_model_dbz )then
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz',ges_dbz,istatus );ier=ier+istatus
+!print*, 'DBZ', ier
+       end if
+
        if (l_gsd_soilTQ_nudge) then
           ier=0
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn', ges_tsk_it, istatus );ier=ier+istatus
@@ -1485,9 +1596,12 @@ contains
   
   !    Following is for convenient WRF MASS input
        num_mass_fields_base=14+4*lm
+  !     num_mass_fields_base=15+4*lm
        num_mass_fields=num_mass_fields_base
-!    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
-       if(l_cloud_analysis .and.n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2
+
+!    The 10 3D cloud analysis fields are: ql,qi,qr,qs,qg,qh,qnr,qni,qnc,tt
+
+       if(l_cloud_analysis .and.n_actual_clouds>0) num_mass_fields=num_mass_fields+10*lm+2
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*(nsig_soil-1)+1
        if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields + 2
        if(i_use_2mq4b > 0 .and. i_use_2mt4b <=0 ) num_mass_fields=num_mass_fields + 1
@@ -1495,9 +1609,7 @@ contains
        if (laeroana_gocart .and. wrf_pm2_5 ) then
           if(mype==0) write(6,*)'laeroana_gocart canoot be both true'
           call stop2(2)
-       endif
-  
-  
+       endif  
        if ( laeroana_gocart ) then
           call gsi_chemguess_get ('aerosols::3d',n_gocart_var,istatus)
           if ( n_gocart_var > 0 ) then
@@ -1506,11 +1618,16 @@ contains
              laeroana_gocart = .false.
           endif
        endif
-  
        if ( wrf_pm2_5 ) then
           num_mass_fields = num_mass_fields + lm
        endif
-  
+       ! RADAR STUFF
+       if( l_w_exist )then
+         num_mass_fields = num_mass_fields + 1+lm
+       end if
+       if( l_model_dbz )then
+         num_mass_fields = num_mass_fields + lm
+       end if 
   
        num_all_fields=num_mass_fields*nfldsig
        num_loc_groups=num_all_fields/npe
@@ -1532,7 +1649,7 @@ contains
        allocate(jsig_skip(num_mass_fields))
        allocate(igtype(num_mass_fields))
        allocate(identity(num_mass_fields))
-  
+ 
   !    initialize GSD specific guess fields
        call create_cld_grids()
   
@@ -1545,6 +1662,7 @@ contains
   
        i=0
   ! for cloud analysis
+       
        if(l_cloud_analysis .and. n_actual_clouds>0) then
           i=i+1 ; i_xlat=i                                                ! xlat
           write(identity(i),'("record ",i3,"--xlat")')i
@@ -1590,6 +1708,16 @@ contains
           write(identity(i),'("record ",i3,"--v(",i2,")")')i,k
           jsig_skip(i)=0 ; igtype(i)=3
        end do
+
+     if(l_w_exist) then
+     i_w=i+1
+       do k=1,lm+1
+         i=i+1                                                       ! w(k)
+         write(identity(i),'("record ",i3,"--w(",i2,")")')i,k
+         jsig_skip(i)=0 ; igtype(i)=1
+       end do
+     endif
+
        i=i+1   ; i_sm=i                                              ! landmask
        write(identity(i),'("record ",i3,"--sm")')i
        jsig_skip(i)=0 ; igtype(i)=1
@@ -1657,7 +1785,7 @@ contains
           jsig_skip(i)=0 ; igtype(i)=1
        endif
   ! for cloud array
-       if(l_cloud_analysis .and. n_actual_clouds>0) then
+         if(l_cloud_analysis .and. n_actual_clouds>0) then
           i_qc=i+1
           do k=1,lm
              i=i+1                                                      ! qc(k)
@@ -1688,6 +1816,12 @@ contains
              write(identity(i),'("record ",i3,"--qg(",i2,")")')i,k
              jsig_skip(i)=0 ; igtype(i)=1
           end do
+          i_qh=i+1
+          do k=1,lm
+             i=i+1                                                    ! qh(k)
+             write(identity(i),'("record ",i3,"--qh(",i2,")")')i,k
+             jsig_skip(i)=0 ; igtype(i)=1
+          end do
           i_qnr=i+1
           do k=1,lm
              i=i+1                                                    !  qnr(k)
@@ -1706,6 +1840,12 @@ contains
              write(identity(i),'("record ",i3,"--qnc(",i2,")")')i,k
              jsig_skip(i)=0 ; igtype(i)=1
           end do
+         ! i_dbz=i+1
+         ! do k=1,lm
+         !    i=i+1                                                    ! dbz(k)
+         !    write(identity(i),'("record ",i3,"--dbz(",i2,")")')i,k
+         !    jsig_skip(i)=0 ; igtype(i)=1
+         ! end do
           i_tt=i+1
           do k=1,lm
              i=i+1                                                    ! tt(k)
@@ -1713,6 +1853,15 @@ contains
              jsig_skip(i)=0 ; igtype(i)=1
           end do
        endif
+
+       if( l_model_dbz )then
+        i_dbz=i+1
+         do k=1,lm
+           i=i+1                                                    ! dbz(k)
+           write(identity(i),'("record ",i3,"--tt(",i2,")")')i,k
+           jsig_skip(i)=0 ; igtype(i)=1
+         end do
+       end if
   
        if ( laeroana_gocart ) then
           if (n_gocart_var >0) then
@@ -1768,27 +1917,29 @@ contains
           write(6,*)'READ_WRF_MASS_GUESS:  open lendian_in=',lendian_in,' to file=',filename
   
   !       Read, interpolate, and distribute MASS restart fields
-          do ifld=1,num_mass_fields
-             icount=icount+1
+          do ifld=1,num_mass_fields 
+            icount=icount+1
              if(jsig_skip(ifld) > 0) then
                 do i=1,jsig_skip(ifld)
                    read(lendian_in)
                 end do
              end if
              if(mype==mod(icount-1,npe)) then
+                !print*, ifld, igtype(ifld)
+
                 if(igtype(ifld)==1) then
                    read(lendian_in)((temp1(i,j),i=1,im),j=1,jm)
-  !                write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+                  !write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
                    call fill_mass_grid2t(temp1,im,jm,tempa,1)
                 end if
                 if(igtype(ifld)==2) then
                    read(lendian_in)((temp1u(i,j),i=1,im+1),j=1,jm)
-  !                write(6,'(" ifld, temp1u(im/2,jm/2)=",i6,e15.5)')ifld,temp1u(im/2,jm/2)
+                  !write(6,'(" ifld, temp1u(im/2,jm/2)=",i6,e15.5)')ifld,temp1u(im/2,jm/2)
                    call fill_mass_grid2u(temp1u,im,jm,tempa,1)
                 end if
                 if(igtype(ifld)==3) then
                    read(lendian_in)((temp1v(i,j),i=1,im),j=1,jm+1)
-  !                write(6,'(" ifld, temp1v(im/2,jm/2)=",i6,e15.5)')ifld,temp1v(im/2,jm/2)
+                  !write(6,'(" ifld, temp1v(im/2,jm/2)=",i6,e15.5)')ifld,temp1v(im/2,jm/2)
                    call fill_mass_grid2v(temp1v,im,jm,tempa,1)
                 end if
                 if(igtype(ifld) < 0) then
@@ -1798,7 +1949,7 @@ contains
                          temp1(i,j)=itemp1(i,j)
                       end do
                    end do
-  !                write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+                  !write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
                    call fill_mass_grid2t(temp1,im,jm,tempa,1)
                 end if
              else
@@ -1829,13 +1980,19 @@ contains
           kq=i_0+i_q-1
           ku=i_0+i_u-1
           kv=i_0+i_v-1
-  
+          if(l_w_exist) then
+            kw=i_0+i_w-1
+          endif 
+ 
   ! typical meteorological fields
           ier=0
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps',ges_ps_it,istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z', ges_z_it, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u', ges_u_it, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v', ges_v_it, istatus );ier=ier+istatus
+          if(l_w_exist) then
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w', ges_w_it, istatus );ier=ier+istatus
+          endif
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv',ges_tv_it,istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' ,ges_q_it, istatus );ier=ier+istatus
           if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
@@ -1854,6 +2011,7 @@ contains
           endif
   
   ! hydrometeors
+      
           if(l_cloud_analysis .and. n_actual_clouds>0) then
   !          Get pointer for each of the hydrometeors from guess at time index "it"
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -1861,19 +2019,27 @@ contains
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qh', ges_qh, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+             !call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz', ges_dbz,istatus );ier=ier+istatus
              kqc=i_0+i_qc-1
              kqr=i_0+i_qr-1
              kqs=i_0+i_qs-1
              kqi=i_0+i_qi-1
              kqg=i_0+i_qg-1
+             kqh=i_0+i_qh-1
+             !kdbz=i_0+i_dbz-1
              kqnr=i_0+i_qnr-1
              kqni=i_0+i_qni-1
              kqnc=i_0+i_qnc-1
              ktt=i_0+i_tt-1
           endif
+          if( l_model_dbz ) then
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz',ges_dbz,istatus );ier=ier+istatus
+            kdbz=i_0+i_dbz-1
+          end if
           if ( laeroana_gocart ) then
   
              if (aero_ratios) then 
@@ -1893,7 +2059,7 @@ contains
                    select case ( trim(cvar(iv)) )
                    case ( 'sulf' )
                       call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_sulf,istatus);ier=ier+istatus                                                              
-                      indx_sulf = iv
+                      indx_sulf = iv     
                    case ( 'bc1' )
                       call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_bc1,istatus);ier=ier+istatus                                                              
                       indx_bc1 = iv
@@ -1977,6 +2143,7 @@ contains
              kq=kq+1
              ku=ku+1
              kv=kv+1
+             if( l_w_exist ) kw=kw+1
   ! hydrometeors
              if(l_cloud_analysis .and. n_actual_clouds>0) then
                 kqc=kqc+1
@@ -1984,11 +2151,14 @@ contains
                 kqs=kqs+1
                 kqi=kqi+1
                 kqg=kqg+1
+                kqh=kqh+1
                 kqnr=kqnr+1
                 kqni=kqni+1
                 kqnc=kqnc+1
+                !kdbz=kdbz+1
                 ktt=ktt+1
              endif
+             if( l_model_dbz ) kdbz=kdbz+1
              if ( laeroana_gocart ) then
                 if ( n_gocart_var > 0 ) then
                    do iv = 1, n_gocart_var
@@ -2006,6 +2176,9 @@ contains
                 do j=1,lat2
                    ges_u_it(j,i,k) = all_loc(j,i,ku)
                    ges_v_it(j,i,k) = all_loc(j,i,kv)
+                   if(l_w_exist) then
+                     ges_w_it(j,i,k) = 0.5*(all_loc(j,i,kw)+all_loc(j,i,kw+1))
+                   endif
                    ges_pot(j,i,k)  = all_loc(j,i,kt)
                    ges_q_it(j,i,k) = all_loc(j,i,kq)
                    q_integral(j,i) = q_integral(j,i)+deltasigma*ges_q_it(j,i,k)
@@ -2020,13 +2193,19 @@ contains
                       ges_qr(j,i,k) = all_loc(j,i,kqr)
                       ges_qs(j,i,k) = all_loc(j,i,kqs)
                       ges_qg(j,i,k) = all_loc(j,i,kqg)
+                      ges_qh(j,i,k) = all_loc(j,i,kqh)
                       ges_qnr(j,i,k)= all_loc(j,i,kqnr)
                       ges_qni(j,i,k)= all_loc(j,i,kqni)
                       ges_qnc(j,i,k)= all_loc(j,i,kqnc)
+  !                    ges_dbz(j,i,k) = all_loc(j,i,kdbz)
   !                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
                       ges_tten(j,i,k,it) = -20.0_r_single
                       if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
-  
+                   endif
+
+                   if( l_model_dbz ) then
+                      ges_dbz(j,i,k) = all_loc(j,i,kdbz)
+                      !print*, ges_dbz(j,i,k)
                    endif
                    if ( laeroana_gocart ) then
                       if (indx_sulf>0)  ges_sulf(j,i,k)  = all_loc(j,i,kchem(indx_sulf))
@@ -2209,6 +2388,8 @@ contains
        
        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
             0,mpi_comm_world,ierror)
+
+
        if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
        if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
        if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
@@ -2221,10 +2402,9 @@ contains
             minval(soil_type),maxval(soil_type)
        if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
             minval(isli),maxval(isli)
-       
+      
        deallocate(all_loc,jsig_skip,igtype,identity)
        deallocate(temp1,itemp1,temp1u,temp1v)
-  
   
        return
   end subroutine read_wrf_mass_netcdf_guess_wrf

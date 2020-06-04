@@ -247,15 +247,11 @@
   use clw_mod, only: calc_clw, ret_amsua
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
+  use qcmod, only: qc_gmi,qc_saphir,qc_amsr2, qc_abi
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv 
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
-
-
-
-
 
 
   implicit none
@@ -301,14 +297,14 @@
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
-  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
+  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,clwp_abi,tpwc_amsua,tpwc_abi,tpwc_guess_retrieval
   real(r_kind) gwp,clw_obs
   real(r_kind) scat,scatp
   real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind) bias       
   real(r_kind) factch6    
 
-  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs
+  logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,abi,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
@@ -318,6 +314,7 @@
   logical in_curbin, in_anybin
   logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
+  logical lcw4crtm
 
 ! Declare local arrays
 
@@ -357,7 +354,7 @@
   integer(i_kind) :: chan_count
   integer(i_kind),allocatable,dimension(:) :: sc_index
 
-  logical channel_passive
+  logical channel_passive, clear_only
   logical,dimension(nobs):: luse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
 
@@ -372,6 +369,9 @@
   n_alloc(:)=0
   m_alloc(:)=0
 !**************************************************************************************
+! FLAG FOR USING CLEAR OR ALL-SKY RADIANCES (TAJ)
+  clear_only = .true.
+
 ! Initialize variables and constants.
   mm1        = mype+1
   r90        = 90._r_kind
@@ -411,6 +411,7 @@
   hsb        = obstype == 'hsb'
   goes_img   = obstype == 'goes_img'
   ahi        = obstype == 'ahi'
+  abi        = obstype == 'abi'
   avhrr      = obstype == 'avhrr'
   avhrr_navy = obstype == 'avhrr_navy'
   ssmi       = obstype == 'ssmi'
@@ -441,6 +442,53 @@
 
 ! Determine cloud & aerosol usages in radiance assimilation
   call radiance_obstype_search(obstype,radmod)
+
+
+! Determine whether or not cloud-condensate is present in MetGuess
+  lcw4crtm=.true.
+!  call gsi_metguess_get('dim',nguess,ier)
+!  if (nguess>0) then
+!     call gsi_metguess_get ('clouds_4crtm_jac::3d', icw4crtm, ier)
+!     if(icw4crtm >0) lcw4crtm = .true.
+!  end if
+
+! lcw4crtm=lcw4crtm .and. (amsua .or. atms)  
+  lcw4crtm=lcw4crtm .and.  (amsua .or. abi)            !leave ATMS as clear-sky for now          
+
+!  if (lcw4crtm) then
+!    Parameters for the observation error model 
+!    cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main
+!    increase in error take place
+!     cclr(:)=zero
+!     ccld(:)=zero
+!     do i=1,nchanl
+!        cclr( 1)=0.05_r_kind
+!        cclr( 2)=0.03_r_kind
+!        cclr( 3)=0.03_r_kind
+!        cclr( 4)=0.02_r_kind
+!        cclr( 5)=0.00_r_kind
+!        cclr( 6)=0.10_r_kind
+!        if (abi) then
+!          cclr(10)=0.03_r_kind
+!        else
+!          cclr(15)=0.03_r_kind
+!        endif
+
+!     end do
+!     do i=1,nchanl
+!        ccld( 1)=0.60_r_kind
+!        ccld( 2)=0.45_r_kind
+!        ccld( 3)=0.40_r_kind
+!        ccld( 4)=0.45_r_kind
+!        ccld( 5)=1.00_r_kind
+!        ccld( 6)=1.50_r_kind
+!        if (abi) then
+!        ccld(10)=0.20_r_kind
+!        else
+!        ccld(15)=0.20_r_kind
+!        endif
+!     end do
+!  endif
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -633,6 +681,16 @@
      iextra=2
   end if
 
+!ABI
+  if (abi .or. lwrite_peakwt) then
+     jextra=nchanl_diag
+     iextra=1
+  end if
+! If both, iextra=2
+  if (abi .and. lwrite_peakwt) then
+     iextra=2
+  end if
+
   lextra = (iextra>0)
 
 
@@ -705,6 +763,8 @@
 
 ! PROCESSING OF SATELLITE DATA
 
+!print*, 'RADSET: ', nobs, nreal, nchanl
+
 ! Loop over data in this block
   call dtime_setup()
   do n = 1,nobs
@@ -750,6 +810,9 @@
         land = data_s(ifrac_lnd,n)  >= 0.99_r_kind
         ice  = data_s(ifrac_ice,n)  >= 0.99_r_kind
         snow = data_s(ifrac_sno,n)  >= 0.99_r_kind
+
+        !print*, n,  data_s(ifrac_sea,n),  data_s(ifrac_lnd,n), data_s(ifrac_ice,n), data_s(ifrac_sno,n)
+
         mixed = .not. sea  .and. .not. ice .and.  &
                 .not. land .and. .not. snow
         eff_area=.false.
@@ -848,7 +911,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmis) then
+              if (goessndr .or. goes_img .or. ahi .or. abi .or. seviri .or. ssmis) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -866,10 +929,12 @@
 !       Compute microwave cloud liquid water or graupel water path for bias correction and QC.
         clw=zero
         clwp_amsua=zero
+        clwp_abi=zero
         clw_obs=zero
         clw_guess_retrieval=zero
         gwp=zero
         tpwc_amsua=zero
+        tpwc_abi=zero
         tpwc_guess_retrieval=zero
         scatp=zero
         scat=zero  
@@ -936,10 +1001,6 @@
               pred(3,i) = clw*cosza*cosza
            end if
            if(radmod%lcloud_fwd .and. sea) pred(3,i ) = zero 
- 
-
-
-
 !       Apply bias correction
  
            kmax(i) = 0
@@ -949,13 +1010,24 @@
 ! (ptau5) is changing the fastest.  This is used for the level
 ! assignment (needed for vertical localization).
               weightmax(i) = zero
+              !if (i == 4) then
+              !  print*, ' '
+              !  print*, tb_obs(i)
+              !end if
               do k=2,nsig
                  ptau5deriv = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
                     (log(prsltmp(k-1))-log(prsltmp(k))) )
+
+                 ! TAJ
+                 !if (i == 4) then
+                 ! print*, i, k, prsltmp(k)*10.0, abs( (ptau5(k-1,i)-ptau5(k,i)) )*1000.0
+                 !end if
+
                  if (ptau5deriv > ptau5derivmax) then
                     ptau5derivmax = ptau5deriv
                     kmax(i) = k
                     weightmax(i) = r10*prsitmp(k) ! cb to mb.
+                    
                  end if
               enddo
            end if
@@ -1204,7 +1276,15 @@
            call qc_goesimg(nchanl,is,ndat,nsig,ich,dplat(is),sea,land,ice,snow,luse(n), &
               zsges,cld,tzbgr,tb_obs,tb_obs_sdv,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc, &
               aivals,errf,varinv)
-           
+
+!  ---------- ABI  -------------------
+!       ABI Q C
+
+        else if (abi) then
+
+          cld = data_s(iclr_sky,n)
+          call qc_abi(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+              zsges,cld,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv)           
 
 !  ---------- SEVIRI  -------------------
 !       SEVIRI Q C
@@ -1308,6 +1388,8 @@
 
 !       Done with sensor qc blocks.  Now make final qc decisions.
 
+
+
 !       Apply gross check to observations.  Toss obs failing test.
         do i = 1,nchanl
            if (varinv(i) > tiny_r_kind ) then
@@ -1331,10 +1413,12 @@
 !                location is too large and difference at the 
 !                observation location is similarly large, then
 !                toss the observation.
-                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
-                 varinv(i) = zero
-                 if(luse(n))stats(2,m) = stats(2,m) + one
-                 if(luse(n))aivals(7,is) = aivals(7,is) + one
+
+                 ! *** TURN OFF: TAJ...ALLOW ENKF TO TAKE CARE OF OUTLIERS
+                 !if(id_qc(i) == igood_qc) id_qc(i)=ifail_gross_qc
+                 !varinv(i) = zero
+                 !if(luse(n)) stats(2,m) = stats(2,m) + one
+                 !if(luse(n)) aivals(7,is) = aivals(7,is) + one
               end if
            end if
         end do
@@ -1796,7 +1880,6 @@
         endif ! (in_curbin)
      end if   !    End of passive_bc block
 
-
      if(in_curbin) then
 !       Write diagnostics to output file.
         if (rad_diagsave .and. luse(n) .and. nchanl_diag > 0) then
@@ -1862,7 +1945,8 @@
                  if (gmi .or. amsr2) then
                    diagbuf(25)  = clw_obs                       ! clw (kg/m**2) from retrievals
                  else
-                   diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
+                   !diagbuf(25)  = clwp_amsua                    ! cloud liquid water (kg/m**2)
+                   diagbuf(25)  = clwp_abi                    ! cloud liquid water (kg/m**2)
                  endif
                  diagbuf(26)  = clw_guess_retrieval        ! retrieved CLWP (kg/m**2) from simulated BT                   
               else
@@ -1886,24 +1970,48 @@
 
            if (lwrite_peakwt) then
               do i=1,nchanl_diag
-                 diagbufex(1,i)=weightmax(ich_diag(i))   ! press. at max of weighting fn (mb)
+                 diagbufex(1,i)=weightmax(ich_diag(i))   ! press. at max of weighting fn (mb)                 
               end do
-              if (goes_img) then
+              !if (goes_img .or. abi) then  !add ABI stuff TAJ
+              if (abi) then  !add ABI stuff TAJ
                  do i=1,nchanl_diag
                     diagbufex(2,i)=tb_obs_sdv(ich_diag(i))
+                    !print*, 'W-MAX1A: ', diagbufex(1,i), diagbufex(2,i)
                  end do
               end if
            else if (goes_img .and. .not.lwrite_peakwt) then
               do i=1,nchanl_diag
                  diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
               end do
+           else if (abi .and. .not.lwrite_peakwt) then
+              do i=1,nchanl_diag
+                 diagbufex(1,i)=tb_obs_sdv(ich_diag(i))
+              end do
            end if
 
            do i=1,nchanl_diag
+              !useflag=one
+
               diagbufchan(1,i)=tb_obs(ich_diag(i))       ! observed brightness temperature (K)
               diagbufchan(2,i)=tbc(ich_diag(i))          ! observed - simulated Tb with bias corrrection (K)
               diagbufchan(3,i)=tbcnob(ich_diag(i))       ! observed - simulated Tb with no bias correction (K)
-              errinv = sqrt(varinv(ich_diag(i)))
+              errinv = one/error0(i)        !TAJ: Don't mess up my observation errors
+              ! DOUBLE ERROR FOR CLOUDS  
+              if (cld < 0.95) then  !1.0 = CLEAR
+                !print*, 'CLOUD ERROR ADJUST'
+                errinv = one/(error0(i)*2.0)
+                ! DO NOT USE 6.2 and 6.9 CHANNELS IN CLOUDS
+                if (i == 2 .or. i == 3) then
+                  !print*, 'DO NOT USE 6.2 or 6.9 IN CLOUDS'
+                  useflag=-one
+                  errinv = 0.0
+                endif
+                if (clear_only) then
+                   errinv = 0.0
+                endif
+              endif
+
+              !errinv = sqrt(varinv(ich_diag(i)))
               diagbufchan(4,i)=errinv                    ! inverse observation error
               useflag=one
               if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one

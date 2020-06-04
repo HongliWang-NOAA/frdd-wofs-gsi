@@ -1,7 +1,7 @@
 subroutine statsconv(mype,&
-     i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
+     i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dbz,i_cwp,i_td,i_dw,i_gps,i_sst,i_tcp,i_lag, &  
      i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, & 
-     i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork,awork,ndata)
+     i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork,awork,ndata)  !i_td added by JJH
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -42,7 +42,8 @@ subroutine statsconv(mype,&
 !   2014-06-06  carley/zhu - add tcamt and lcbas
 !   2015-07-10  pondeca - add cldch
 !   2016-05-05  pondeca - add uwnd10m, vwnd10m
-!
+!   2016-09-25  Thomas Jones - add cwp variables 
+!   2017-10-04  Thomas Jones - add dewpoint variable
 !   input argument list:
 !     mype     - mpi task number
 !     i_ps     - index in awork array holding surface pressure info
@@ -72,6 +73,9 @@ subroutine statsconv(mype,&
 !     i_uwnd10m- index in awork array holding uwnd10m info
 !     i_vwnd10m- index in awork array holding vwnd10m info
 !     i_ref    - size of second dimension of awork array
+!     i_dbz    - index in awork array holding reflectivity info
+!     i_cwp    - index in awork array holding cloud water path info
+!     i_td     - index in awork array holding dewpoint info
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
 !     ndata(*,1)- number of profiles retained for further processing
@@ -87,15 +91,17 @@ subroutine statsconv(mype,&
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero,three,five
-  use obsmod, only: iout_sst,iout_pw,iout_t,iout_rw,iout_dw,&
+  use obsmod, only: iout_sst,iout_pw,iout_t,iout_rw,iout_dbz,iout_cwp,iout_dw,&
        iout_srw,iout_uv,iout_gps,iout_ps,iout_q,iout_tcp,iout_lag,&
        iout_gust,iout_vis,iout_pblh,iout_wspd10m,iout_td2m,& 
        iout_mxtm,iout_mitm,iout_pmsl,iout_howv,iout_tcamt,iout_lcbas,iout_cldch,&
        iout_uwnd10m,iout_vwnd10m,&
        mype_dw,mype_rw,mype_srw,mype_sst,mype_gps,mype_uv,mype_ps,&
        mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,&
-       mype_vis,mype_pblh,mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,&
-       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m
+       mype_vis,mype_pblh,mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,& 
+       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m,&
+       mype_dbz,mype_cwp,mype_td,iout_td ! mype_td,iout_td added by JJH
+     
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -104,9 +110,9 @@ subroutine statsconv(mype,&
 
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
-       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,&
+       i_srw,i_t,i_q,i_pw,i_rw,i_dbz,i_cwp,i_td,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,&
        i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,&
-       i_cldch,i_uwnd10m,i_vwnd10m,i_ref
+       i_cldch,i_uwnd10m,i_vwnd10m,i_ref !i_td added by JJH
   real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -127,6 +133,9 @@ subroutine statsconv(mype,&
   real(r_kind) vmplty,uvqcplty,rat1,rat2,rat3
   real(r_kind) dwqcplty,tqcplty,qctt,qctrw,rwqcplty,qctdw,qqcplty,qctgps
   real(r_kind) gpsqcplty,tpw3,pw3,qctq
+  real(r_kind) cwpmplty,tcwp, qctcwp,cwpqcplty
+  real(r_kind) dbzmplty,tdbz, qctdbz,dbzqcplty
+  real(r_kind) tdmplty,ttd,tdqcplty,qcttd ! for td - JJH
   real(r_kind),dimension(1):: pbotall,ptopall
   
   logical,dimension(nconvtype):: pflag
@@ -429,6 +438,67 @@ subroutine statsconv(mype,&
 
      close(iout_q)
   end if
+
+! Summary report for dewpoint
+!  if(mype==mype_td) then
+!     if(first)then
+!        open(iout_td)
+!     else
+!        open(iout_td,position='append')
+!     end if
+
+!     mesage='current fit of td data, units in per-cent of guess td-sat$'
+!     do j=1,nconvtype
+!        pflag(j)=trim(ioctype(j)) == 'td'
+!     end do
+!     call dtast(bwork,npres_print,pbottd,ptoptd,mesage,jiter,iout_td,pflag)
+
+!     tdmplty=zero; tdqcplty=zero ; ntot=0
+!     ttd=zero ; qcttd=zero
+!     nread=0
+!     nkeep=0
+!     do i=1,ndat
+!        if(dtype(i)== 'td')then
+!           nread=nread+ndata(i,2)
+!           nkeep=nkeep+ndata(i,3)
+!        end if
+!     end do
+!     if(nkeep > 0)then
+!        do k=1,nsig
+!           num(k)=nint(awork(k+6*nsig+100,i_td))
+!           rat=zero
+!           rat3=zero
+!           if(num(k) > 0)then
+!              rat=awork(5*nsig+k+100,i_td)/float(num(k))
+!              rat3=awork(3*nsig+k+100,i_td)/float(num(k))
+!           end if
+!           tdmplty=tdmplty+awork(5*nsig+k+100,i_td)
+!           tdqcplty=tdqcplty+awork(3*nsig+k+100,i_td)
+!           ntot=ntot+num(k)
+!           write(iout_td,240) 'td',num(k),k,awork(5*nsig+k+100,i_td), &
+!                                  awork(3*nsig+k+100,i_td),rat,rat3
+!        end do
+!        grsmlt=five
+ !       numgrstd=nint(awork(4,i_td))
+ !       numfailqc=nint(awork(21,i_td))
+!        write(iout_td,924)'  (K)'
+!        write(iout_td,925) 'td',numgrstd,numfailqc
+!        write(iout_td,975) grsmlt,'td',awork(5,i_td)
+!        numlow      = nint(awork(2,i_td))
+!        numhgh      = nint(awork(3,i_td))
+!        write(iout_q,900) 'q',numhgh,numlow
+!        if(ntot > 0) then
+!           tq=tdmplty/float(ntot)
+!           tdctq=tdqcplty/float(ntot)
+!        end if
+!     end if
+
+!     write(iout_td,950) 'td',jiter,nread,nkeep,ntot
+!     write(iout_td,951) 'td',tdmplty,tdqcplty,ttd,qcttd
+
+!     close(iout_td)
+!  end if
+
 
 
 ! Summary report for surface pressure
@@ -1156,6 +1226,60 @@ subroutine statsconv(mype,&
      close(iout_t)
   endif
 
+! Summary report for dew point temperature ! added by JJH 
+  if (mype==mype_td)then
+     if(first)then
+        open(iout_td)
+     else
+        open(iout_td,position='append')
+     end if
+
+     tdmplty=zero; tdqcplty=zero ; ntot=0
+     ttd=zero ; qcttd=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'td')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of dew point temperature data, ranges in K $'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'td'
+        end do
+        call dtast(bwork,npres_print,pbotq,ptopq,mesage,jiter,iout_td,pflag)
+        do k=1,nsig
+           num(k)=nint(awork(5*nsig+k+100,i_td))
+           rat=zero ; rat3=zero
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_td)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_td)/float(num(k))
+           end if
+           ntot=ntot+num(k); tdmplty=tdmplty+awork(6*nsig+k+100,i_td)
+           tdqcplty=tdqcplty+awork(3*nsig+k+100,i_td)
+           write(iout_t,240) 'td',num(k),k,awork(6*nsig+k+100,i_t), &
+                                          awork(3*nsig+k+100,i_t),rat,rat3
+        end do
+        numgross=nint(awork(4,i_td))
+        numfailqc=nint(awork(21,i_td))
+        write(iout_td,925) 'dew point temp',numgross,numfailqc
+        numlow      = nint(awork(2,i_td))
+        numhgh      = nint(awork(3,i_td))
+        write(iout_td,900) 'td',numhgh,numlow
+        if(ntot > 0) then
+           ttd=tdmplty/ntot
+           qcttd=tdqcplty/ntot
+        end if
+     end if
+
+     write(iout_td,950) 'td',jiter,nread,nkeep,ntot
+     write(iout_td,951) 'td',tdmplty,tdqcplty,ttd,qcttd
+
+     close(iout_td)
+  endif
+
 
 ! Summary report for doppler lidar winds
   if(mype==mype_dw) then
@@ -1273,6 +1397,128 @@ subroutine statsconv(mype,&
      
      close(iout_rw)
   end if
+
+! Summary report for radar reflectivity
+  if(mype==mype_dbz) then
+     if(first)then
+        open(iout_dbz)
+     else
+        open(iout_dbz,position='append')
+     end if
+
+     dbzmplty=zero; dbzqcplty=zero ; ntot=0
+     tdbz=zero ; qctdbz=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'dbz')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current vfit of radar reflectivity data, ranges in dBZ$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'dbz'
+        end do
+        call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_dbz,pflag)
+
+        numgross=nint(awork(4,i_dbz))
+        numfailqc=nint(awork(21,i_dbz))
+        do k=1,nsig
+           num(k)=nint(awork(k+5*nsig+100,i_dbz))
+           rat=zero
+           rat3=zero
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_dbz)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_dbz)/float(num(k))
+           end if
+           ntot=ntot+num(k)
+           dbzmplty=dbzmplty+awork(6*nsig+k+100,i_dbz)
+           dbzqcplty=dbzqcplty+awork(3*nsig+k+100,i_dbz)
+           write(iout_dbz,240) 'r',num(k),k,awork(6*nsig+k+100,i_dbz), &
+                                           awork(3*nsig+k+100,i_dbz),rat,rat3
+        end do
+        if(ntot > 0) then
+           tdbz=dbzmplty/float(ntot)
+           qctdbz=dbzqcplty/float(ntot)
+        end if
+        write(iout_dbz,925) 'dbz',numgross,numfailqc
+        numlow       = nint(awork(2,i_dbz))
+        numhgh       = nint(awork(3,i_dbz))
+        nhitopo      = nint(awork(5,i_dbz))
+        ntoodif      = nint(awork(6,i_dbz))
+        write(iout_dbz,900) 'dbz',numhgh,numlow
+        write(iout_dbz,905) 'dbz',nhitopo,ntoodif
+     end if
+     write(iout_dbz,950) 'dbz',jiter,nread,nkeep,ntot
+     write(iout_dbz,951) 'dbz',dbzmplty,dbzqcplty,tdbz,qctdbz
+
+     close(iout_dbz)
+  end if
+
+! Summary report for cloud water path
+  if(mype==mype_cwp) then
+     if(first)then
+        open(iout_cwp)
+     else
+        open(iout_cwp,position='append')
+     end if
+
+     cwpmplty=zero; cwpqcplty=zero ; ntot=0
+     tcwp=zero ; qctcwp=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'cwp')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current vfit of cloud water path data, ranges in CWP$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'cwp'
+        end do
+        call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_cwp,pflag)
+
+        numgross=nint(awork(4,i_cwp))
+        numfailqc=nint(awork(21,i_cwp))
+        print*, numgross, numfailqc
+
+        do k=1,nsig
+           num(k)=nint(awork(k+5*nsig+100,i_cwp))
+           !print*, num(k), nsig, i_cwp
+           rat=zero
+           rat3=zero
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_cwp)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_cwp)/float(num(k))
+           end if
+           ntot=ntot+num(k)
+           cwpmplty=cwpmplty+awork(6*nsig+k+100,i_cwp)
+           cwpqcplty=cwpqcplty+awork(3*nsig+k+100,i_cwp)
+           write(iout_cwp,240) 'r',num(k),k,awork(6*nsig+k+100,i_cwp), &
+                                           awork(3*nsig+k+100,i_cwp),rat,rat3
+        end do
+        if(ntot > 0) then
+           tcwp=cwpmplty/float(ntot)
+           qctcwp=cwpqcplty/float(ntot)
+        end if
+        write(iout_cwp,925) 'cwp',numgross,numfailqc
+        numlow       = nint(awork(2,i_cwp))
+        numhgh       = nint(awork(3,i_cwp))
+        nhitopo      = nint(awork(5,i_cwp))
+        ntoodif      = nint(awork(6,i_cwp))
+        write(iout_cwp,900) 'cwp',numhgh,numlow
+        write(iout_cwp,905) 'cwp',nhitopo,ntoodif
+     end if
+     write(iout_cwp,950) 'cwp',jiter,nread,nkeep,ntot
+     write(iout_cwp,951) 'cwp',cwpmplty,cwpqcplty,tcwp,qctcwp
+
+     close(iout_cwp)
+  end if
+
 
   if(mype==mype_tcp) then
      if(first)then

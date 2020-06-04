@@ -149,7 +149,7 @@ subroutine open_(unit,file,class,newunit,action,position,status,iostat,silent)
   class_   ='.default.'; if(present(class   )) class_   =class
   action_  ='readwrite'; if(present(action  )) action_  =action
   position_='rewind'   ; if(present(position)) position_=position
-  newunit_ =.false.    ; if(present(newunit )) newunit_ =newunit
+  newunit_ =.true.     ; if(present(newunit )) newunit_ =newunit
   status_  ='unknown'  ; if(present(status  )) status_  =status
 
   if(present(iostat)) iostat=0

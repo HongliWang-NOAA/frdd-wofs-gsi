@@ -18,7 +18,16 @@
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip
+     lread_obs_save,lread_obs_skip, &
+     irregular_radar_obs,whichradar, &
+     doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,logspace,&
+     radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,qc_logspace,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal,if_cv_w, if_cv_dbz,&
+     minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
+     innerverifonly,innerdlon1,innerdlon2,innerdlat1,innerdlat2,&
+     ntilt_radarfiles,decreasemesonetoberr,mesonettoberr,mesonetuvoberr,&
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz
+ 
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,&
      obsmod_init_instr_table,obsmod_final_instr_table
@@ -88,7 +97,8 @@
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
      use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
-     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,&
+     use_reflectivity
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io_mod, only: regional_io_class
@@ -538,7 +548,18 @@
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter
+       luse_obsdiag,id_drifter, &
+       use_reflectivity,lsingleradob,&
+       irregular_radar_obs,missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
+       maxobrangevr,maxtiltvr,whichradar,doradaroneob,oneoblat,&
+       oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,logspace,&
+       qc_logspace, rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, &
+       radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
+       decreasemesonetoberr,mesonettoberr,mesonetuvoberr,&
+       innerverifonly,innerdlon1,innerdlon2,innerdlat1,innerdlat2,&
+       minobrangevr, maxtiltdbz, mintiltvr, mintiltdbz,if_vterminal,&
+       if_cv_w, if_cv_dbz
+
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -669,6 +690,7 @@
 
   namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag,ljcpdry,bamp_jcpdry,eps_eer,&
       ljc4tlevs
+
 
 ! STRONGOPTS (strong dynamic constraint)
 !     reg_tlnmc_type -  =1 for 1st version of regional strong constraint
@@ -1093,6 +1115,7 @@
   read(5,setup) 
   read(5,gridopts)
 
+
 ! call to obsmod_init_instr_table must be after setup and gridopts are read in
   call obsmod_init_instr_table(nhr_assimilation,ndat)
   read(5,bkgerr)
@@ -1159,6 +1182,7 @@
 
   close(11)
 #endif
+
 
   if(jcap > jcap_cut)then
     jcap_cut = jcap+1
@@ -1321,10 +1345,10 @@
   endif
 
 ! Force turn of cloud analysis and hydrometeor IO
-  if (i_gsdcldanal_type==0) then
-     l_cloud_analysis = .false.
-     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
-  endif
+!  if (i_gsdcldanal_type==0) then
+!     l_cloud_analysis = .false.
+!     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
+!  endif
   if((i_coastline == 1 .or. i_coastline == 3) .and. i_use_2mt4b==0) then
      i_coastline=0
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** ',&

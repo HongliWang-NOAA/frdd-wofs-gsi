@@ -39,6 +39,7 @@ contains
   !                                concentration)
   !   2017-03-23  Hu  - add code to read hybrid vertical coodinate in WRF MASS
   !                         core
+  !   2017-10-06  Jones = add in reflectivity and being Qhail
   !
   !   input argument list:
   !
@@ -53,7 +54,8 @@ contains
   !   machine:  ibm RS/6000 SP
   !
   !$$$
-  
+ 
+    use control_vectors, only : l_w_exist, l_model_dbz 
     use kinds, only: r_single,i_kind
     use constants, only: h300
     use gsi_4dvar, only: nhr_assimilation
@@ -102,7 +104,7 @@ contains
     real(r_single) pt_regional
     real(r_single) rdx,rdy
     real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
-    real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:),field1a(:)
+    real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:),field3w(:,:,:),field1a(:)
     integer(i_kind),allocatable::ifield2(:,:)
     real(r_single) rad2deg_single
     integer(i_kind) wrf_real
@@ -113,15 +115,28 @@ contains
     wrf_real=104
     end_index=0
     start_index=0
+
+  ! === check if file anavinfo contains the w/dbz as the control variables
+  ! ===
+  !if( if_cv_w )then
+    if( .not. l_w_exist) STOP ' Please check the file anavinfo to make sure w &
+                                have been added to met_guess & control_vector '
+  !end if
+  !if( if_cv_dbz )then
+    if( .not. l_model_dbz ) STOP ' Please check the file anavinfo to make sure dbz &
+                                   have been added to met_guess & control_vector '
+  !end if
     
   ! Inquire about cloud guess fields
+
+    print*, 'N ACTUAL CLOUDS: ', n_actual_clouds
     call gsi_metguess_get('clouds::3d',n_actual_clouds,ierr)
   
   ! transfer code from diffwrf for converting netcdf wrf nmm restart file
   ! to temporary binary format
   
     call ext_ncd_ioinit(sysdepinfo,status)
-    call set_wrf_debug_level ( 5 )
+    call set_wrf_debug_level ( 50 )
     
     n_loop: do n=1,9 ! loop over forecast hours in assim interval
   
@@ -145,11 +160,13 @@ contains
              cycle n_loop
           endif
        endif
-  
     
+ 
        write(filename,'("sigf",i2.2)') n
+       print*, 'OPEN sig file for writing'
        open(iunit,file=filename,form='unformatted')
-  
+       print*, 'IN SIG GILE'  
+
        write(6,*)' convert ',trim(flnm1),' to ', trim(filename)
   
   !-------------  get date info
@@ -201,7 +218,10 @@ contains
        allocate(ifield2(nlon_regional,nlat_regional))
        allocate(field1(max(nlon_regional,nlat_regional,nsig_regional)))
        allocate(field1a(max(nlon_regional,nlat_regional,nsig_regional)))
-    
+       if(l_w_exist) then
+         allocate(field3w(nlon_regional,nlat_regional,nsig_regional+1))
+       endif   
+ 
        rmse_var='P_TOP'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
@@ -569,6 +589,29 @@ contains
                field3v(nlon_regional/2,nlat_regional/2,k)
           write(iunit)((field3v(i,j,k),i=1,nlon_regional),j=1,nlat_regional+1)   ! V
        end do
+
+     if(l_w_exist) then
+     rmse_var='W'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index, WrfType, ierr    )
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
+     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3w,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index,               & !dom
+          start_index,end_index,               & !mem
+          start_index,end_index,               & !pat
+          ierr                                 )
+     do k=1,nsig_regional+1
+          write(6,*)' k,max,min,mid W=',k,maxval(field3w(:,:,k)),minval(field3w(:,:,k)), &
+               field3w(nlon_regional/2,nlat_regional/2,k)
+          write(iunit)((field3w(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! W
+     end do
+     endif
+
      
 !      rmse_var='LANDMASK'
        rmse_var='XLAND'
@@ -967,6 +1010,27 @@ contains
                         field3(nlon_regional/2,nlat_regional/2,k)
              write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qg
           end do
+
+          rmse_var='QHAIL'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr !DEDE
+          write(6,*)' ordering = ',trim(ordering),' staggering =',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Qh=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                        field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)! Qh
+          end do
+
    
           rmse_var='QNRAIN'
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering,    & 
@@ -1008,7 +1072,8 @@ contains
              write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) ! Qni    
           end do
 
-          rmse_var='QNCLOUD'
+!          rmse_var='QNCLOUD'
+          rmse_var='QNDROP'
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering,    & 
                start_index,end_index, WrfType, ierr    )
           write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
@@ -1027,6 +1092,28 @@ contains
                       field3(nlon_regional/2,nlat_regional/2,k)
              write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) ! Qnc
           end do
+
+          if( l_model_dbz ) then
+          rmse_var='REFL_10CM'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering,    &
+               start_index,end_index, WrfType, ierr    )
+          write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+          write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr
+          write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+          write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+               field3,WRF_REAL,0,0,0,ordering,           &
+               staggering, dimnames ,               &
+               start_index,end_index,               & !dom
+               start_index,end_index,               & !mem
+               start_index,end_index,               & !pat
+               ierr                                 )
+          do k=1,nsig_regional
+             write(6,*)' k,max,min,mid Refl10cm=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                      field3(nlon_regional/2,nlat_regional/2,k)
+             write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) ! REFL_10cm
+          end do
+          endif
 
           rmse_var='RAD_TTEN_DFI'
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -1142,6 +1229,7 @@ contains
 
 
        deallocate(field1,field1a,field2,field2b,field2c,ifield2,field3,field3u,field3v)
+       if(l_w_exist) deallocate(field3w)
        close(iunit)
        call ext_ncd_ioclose(dh1, Status)
    
@@ -2201,10 +2289,12 @@ contains
     real(r_kind), pointer :: ges_qr(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qs(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qg(:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qh(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qni(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL()
-  
+    real(r_kind), pointer :: ges_dbz(:,:,:)=>NULL()  
+
   ! binary stuff
   
   ! rmse stuff
@@ -2229,6 +2319,7 @@ contains
   
   ! Inquire about guess fields
     call gsi_metguess_get('clouds::3d',n_actual_clouds,ierr)
+    print*, '**** NCLOUDS', n_actual_clouds
     if (n_actual_clouds>0) then
   !    get pointer to relevant instance of cloud-related backgroud
        it=ntguessig
@@ -2238,9 +2329,13 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ierr=ierr+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ierr=ierr+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ierr=ierr+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qh', ges_qh, istatus );ierr=ierr+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ierr=ierr+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ierr=ierr+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ierr=ierr+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz', ges_dbz, istatus );ierr=ierr+istatus
+
+
        if (ierr/=0) n_actual_clouds=0
     end if
   
@@ -2770,9 +2865,38 @@ contains
   
       do k=1,nsig_regional
          read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) !  Qnr
-         write(6,*)' k,max,min,mid Qnr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+         write(6,*)' k,max,min,mid Qg=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
               field3(nlon_regional/2,nlat_regional/2,k)
       end do
+
+
+      rmse_var='QHAIL'
+      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+           start_index,end_index1, WrfType, ierr    )
+      write(6,*)' rmse_var=',trim(rmse_var)
+      write(6,*)' ordering=',ordering
+      write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+      write(6,*)' ndim1=',ndim1
+      write(6,*)' staggering=',staggering
+      write(6,*)' start_index=',start_index
+      write(6,*)' end_index1=',end_index1
+      where (field3 < tiny_single) field3 = tiny_single
+      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+           field3,WRF_REAL,0,0,0,ordering,           &
+           staggering, dimnames ,               &
+           start_index,end_index1,               & !dom
+           start_index,end_index1,               & !mem
+           start_index,end_index1,               & !pat
+           ierr                                 )
+
+      do k=1,nsig_regional
+         read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) !  Qh
+         write(6,*)' k,max,min,mid Qh=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+              field3(nlon_regional/2,nlat_regional/2,k)
+      end do
+
+
+
       rmse_var='QNRAIN'
       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
            start_index,end_index1, WrfType, ierr    )
@@ -2845,6 +2969,32 @@ contains
          write(6,*)' k,max,min,mid TTEN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
               field3(nlon_regional/2,nlat_regional/2,k)
       end do
+
+      rmse_var='REFL_10CM'
+      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+           start_index,end_index1, WrfType, ierr    )
+      write(6,*)' rmse_var=',trim(rmse_var)
+      write(6,*)' ordering=',ordering
+      write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+      write(6,*)' ndim1=',ndim1
+      write(6,*)' staggering=',staggering
+      write(6,*)' start_index=',start_index
+      write(6,*)' end_index1=',end_index1
+      where (field3 < tiny_single) field3 = tiny_single
+      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+           field3,WRF_REAL,0,0,0,ordering,           &
+           staggering, dimnames ,               &
+           start_index,end_index1,               & !dom
+           start_index,end_index1,               & !mem
+           start_index,end_index1,               & !pat
+           ierr                                 )
+
+      do k=1,nsig_regional
+         read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional) !  Qnr
+         write(6,*)' k,max,min,mid Refl10cm=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+              field3(nlon_regional/2,nlat_regional/2,k)
+      end do
+
       rmse_var='RAD_TTEN_DFI'
       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
            start_index,end_index1, WrfType, ierr    )
@@ -3047,6 +3197,10 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qnr=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qnc=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qni=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_dbz=>NULL()
   
   ! binary stuff
   

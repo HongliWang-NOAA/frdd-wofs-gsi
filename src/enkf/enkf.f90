@@ -100,23 +100,28 @@ use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    ensmean_obchunk, indxob_chunk, oblnp_chunk, nobs_max, &
                    obtime_chunk, grdloc_chunk, obloc_chunk, &
                    npts_max, anal_obchunk_prior
-use statevec, only: ensmean_chunk, anal_chunk, ensmean_chunk_prior
+use statevec, only: ensmean_chunk, anal_chunk, ensmean_chunk_prior, &
+                    prior_inf_chunk,prior_inf_sd_chunk ! prior adaptive inflation JJH
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   nobstot, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post, obtime,&
                   obtype, oberrvarmean, numobspersat, deltapredx, biaspreds,&
                   biasprednorm, oberrvar_orig, probgrosserr, prpgerr,&
-                  corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype
+                  corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,&
+                  stattype!JJH
 use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
                   covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
-                  iseed_perturbed_obs,lupd_obspace_serial
+                  iseed_perturbed_obs,lupd_obspace_serial,&
+                  prior_inf,prior_inf_initial, prior_inf_sd_initial,prior_inf_lower_bound,&
+                  prior_inf_upper_bound,prior_inf_sd_lower_bound ! prior adaptive inflation JJH
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
 use sorting, only: quicksort, isort
+use adaptive_inflate_mod, only : update_inflation  !JJH adaptive inflation
 !use innovstats, only: print_innovstats
 
 implicit none
@@ -158,6 +163,18 @@ type(kdtree2_result),dimension(:),allocatable :: sresults1,sresults2
 integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2
 real(r_single),dimension(nlevs_pres):: taperv
 logical lastiter, kdgrid, kdobs
+
+real(r_single),dimension(nlevs_pres):: taperv_nt ! the product of horizontal, vertcal localization factor (without time localization) -JJH
+
+! variables added for adaptive inflation --JJH
+real(r_single), allocatable, dimension(:) :: orig_ob_mean_prior
+real(r_single), allocatable, dimension(:) :: orig_ob_var_prior
+real(r_single),allocatable, dimension(:,:,:) :: orig_prior_inf_chunk
+real(r_single) :: ens_obs_mean,ens_obs_var,ens_var_deflate,r_mean, r_var
+real(r_single) :: old_prior_inf, old_prior_inf_sd,ss_inflate_base
+real(r_single) :: new_prior_inf, new_prior_inf_sd
+real(r_single) :: state_var, obs_prior_var,obs_state_cov,intermed
+real(r_single) :: correl,gamma
 
 ! allocate temporary arrays.
 allocate(anal_obchunk(nanals,nobs_max))
@@ -238,6 +255,19 @@ lnsigl_orig = lnsigl
 kdgrid=associated(kdtree_grid)
 kdobs=associated(kdtree_obs)
 
+!if (nproc == 0) print*, niter, numiter, varqc, huber
+
+! Before updating any state, record the original mean and variance for each observation -JJH
+! also record the prior_inf_mean values used for prior inflation
+if(prior_inf == 1) then
+     allocate(orig_prior_inf_chunk(npts_max,ndim,nbackgrounds))
+     allocate(orig_ob_mean_prior(nobstot))
+     allocate(orig_ob_var_prior(nobstot))
+     orig_ob_mean_prior = ensmean_ob
+     orig_ob_var_prior = obsprd_prior
+     orig_prior_inf_chunk = prior_inf_chunk
+end if
+
 do niter=1,numiter
 
   lastiter = niter == numiter
@@ -301,7 +331,8 @@ do niter=1,numiter
     endif
   else
     do nob=1,nobstot
-      oberrvaruse(nob) = oberrvar(nob)
+      !oberrvaruse(nob) = oberrvar(nob)
+       oberrvaruse(nob) = oberrvar_orig(nob)  !USE ORIGINAL OBS-ERR (TAJ)
     end do
   end if
 
@@ -470,6 +501,9 @@ do niter=1,numiter
       obtimelinv=one/obtimel(nob)
       hpfhtcon=hpfhtoberrinv*r_nanalsm1
 
+! debug to check of localizations match obs type (TAJ)
+      !if (nproc == 0) print*, 'LOCAL CHECK:', obtype(nob), nob, corrlengthsq(nob), lnsigl(nob)
+
 !  Only need to recalculate nearest points when lat/lon is different
       if(nobx == 1 .or. &
          abs(obloclat(nob)-obloclat(nobm)) .gt. tiny(obloclat(nob)) .or. &
@@ -556,13 +590,41 @@ do niter=1,numiter
                lnsig = abs(lnp_chunk(i,nn)-oblnp(nob))
                if(lnsig < lnsigl(nob))then
                  taperv(nn)=taper1*taper(lnsig*lnsiglinv)
+                 taperv_nt(nn)=taper_disgrd(ii)*taper(lnsig*lnsiglinv) ! JJH,currently only the spatial localization scale
                else
                  taperv(nn)=-2._r_single      ! negative number is a flag to not use
+                 taperv_nt(nn)=-2._r_single      ! negative number is a flag to not use
                end if
              end do
              do nn=nn1,nn2
                 nnn=index_pres(nn)
                 if (taperv(nnn) > zero) then
+                     !****************************************************!
+                     ! calculate the correlation coefficient and prior state
+                     ! variance -JJH
+                     ! correlation coefficient between obs and state
+                      correl = 0.0
+                      state_var = sum((anal_chunk(:,i,nn,nb))**2)*r_nanalsm1 !
+
+                      obs_prior_var = hpfht ! ob prior variance.
+                      obs_state_cov = sum( (anal_chunk(:,i,nn,nb)) * (anal_obtmp) )*r_nanalsm1! covaraince between obs and state 
+                      if (state_var <= 0.0_r_single .or. obs_prior_var <= 0.0_r_single) then
+                          correl = 0.0_r_single
+                      else
+                          intermed = sqrt(obs_prior_var) * sqrt(state_var)
+                          if (intermed <= 0.0_r_single) then
+                             correl = 0.0_r_single
+                          else
+                             correl = obs_state_cov / intermed
+                          end if
+                      end if
+                      if(correl >  1.0_r_single) correl =  1.0_r_single
+                      if(correl < -1.0_r_single) correl = -1.0_r_single
+                     !****************************************************
+
+
+                     !****************************************************!
+                     !  update state
                     ! gain includes covariance localization.
                     ! update all time levels
                     kfgain=taperv(nnn)*sum(anal_chunk(:,i,nn,nb)*anal_obtmp)
@@ -570,6 +632,58 @@ do niter=1,numiter
                     ensmean_chunk(i,nn,nb) = ensmean_chunk(i,nn,nb) + kfgain*obinc_tmp
                     ! update perturbations.
                     anal_chunk(:,i,nn,nb) = anal_chunk(:,i,nn,nb) + kfgain*obganl(:)
+
+
+                     !****************************************************!
+                     ! update prior inflation mean and sd JJH
+                     if(prior_inf == 1) then
+                        ! the initial inflate value for this state variable
+                        ! (like orig_ob_mean_prior, before any inflation
+                        ! updating, the values that are used before
+                        ! filtering),for every obs, the inflation value will be
+                        ! updated once
+                        ss_inflate_base = orig_prior_inf_chunk(i,nn,nb)
+
+                        ! the old inflation values
+                        old_prior_inf = prior_inf_chunk(i,nn,nb)
+                        old_prior_inf_sd = prior_inf_sd_chunk(i,nn,nb)
+                        ! Gamma is less than 1
+!                        if(nproc==0) print *,'taper_nt,taperv,correl=',taperv_nt(nnn),taperv(nnn),correl
+                        ! the state_var and correl are calculated before state
+                        ! updating
+                        gamma = min(1.0,taperv_nt(nnn)) * abs(correl)
+
+                        ! Deflate the inflated variance using the INITIAL state
+                        ! inflate value
+                        ens_obs_mean = orig_ob_mean_prior(nob)
+                        ens_obs_var =  orig_ob_var_prior(nob)
+
+                        ! Remove the impact of inflation to allow efficient single pass with assim.
+                        ens_var_deflate = ens_obs_var / &
+                                     (1.0_r_single + gamma*(sqrt(ss_inflate_base) - 1.0_r_single))**2
+                        r_mean = ens_obs_mean
+                        r_var  = ens_var_deflate
+
+                        ! Update the inflation values
+                        new_prior_inf = old_prior_inf
+                        new_prior_inf_sd = old_prior_inf_sd
+                        if(.not. isnan(ens_var_deflate)) then
+                              ! if deflated variance is nan, then the inflation
+                              ! value keeps unchanged
+                              call update_inflation(old_prior_inf,old_prior_inf_sd, new_prior_inf, new_prior_inf_sd, &
+                                   r_mean, r_var, ob(nob), oberrvaruse(nob),gamma)
+                        end if
+                        ! set lower and upper bounds
+                        if(new_prior_inf < prior_inf_lower_bound)  new_prior_inf=prior_inf_lower_bound
+                        if(new_prior_inf > prior_inf_upper_bound)  new_prior_inf=prior_inf_upper_bound
+                        if(new_prior_inf_sd < prior_inf_sd_lower_bound)  new_prior_inf_sd=prior_inf_sd_lower_bound
+                        ! Copy updated values into ensemble storage
+                        prior_inf_chunk(i,nn,nb) = new_prior_inf
+                        prior_inf_sd_chunk(i,nn,nb) = new_prior_inf_sd
+                     end if
+                     !****************************************************!
+
+
                 end if
              end do
           end do ! end loop over background time levels. 
@@ -718,6 +832,12 @@ if (iassim_order == 2) then
 endif
 deallocate(paoverpb_save)
 deallocate(corrlengthsq_orig,lnsigl_orig)
+
+if(prior_inf==1) then ! JJH deallocate temporary arrays
+     deallocate(orig_prior_inf_chunk)
+     deallocate(orig_ob_mean_prior)
+     deallocate(orig_ob_var_prior)
+end if
 
 end subroutine enkf_update
 

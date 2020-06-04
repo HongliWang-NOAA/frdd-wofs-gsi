@@ -179,8 +179,8 @@ allocate(biasprednorm(npred),biasprednorminv(npred))
 !biasprednorm(4) = 1.1e-3_r_single
 !biasprednorm(4) = zero   ! don't use this predictor (too co-linear)?
 ! what the heck, just scale them all by 0.01!
-!biasprednorm = 0.01_r_single
-biasprednorm=one
+biasprednorm = 0.01_r_single
+!biasprednorm=one
 biasprednorminv=zero
 do n=1,npred
    if (nproc == 0) print *,n,'biasprednorm = ',biasprednorm(n)

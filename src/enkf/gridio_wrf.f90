@@ -83,6 +83,7 @@ contains
 
     character(len=500)                                                           :: filename
     character(len=3)                                                             :: charnanal
+    character(len=3)                                                             :: charnanal2
     integer,                                                         intent(in)  :: nanal
 
     ! Define variables returned by subroutine
@@ -161,7 +162,12 @@ contains
     ! Define character string for ensemble member file
 
     write(charnanal,'(i3.3)') nanal
-    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+    if (nanal .lt. 10) write(charnanal2,'(i1.0)') nanal
+    if (nanal .ge. 10 .and. nanal .lt. 100) write(charnanal2,'(i2.0)') nanal
+    if (nanal .ge. 100) write(charnanal2,'(i3.0)') nanal
+!    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//charnanal2
+!    print*, 'in filemane: ', filename, charnanal2, nanal
 
     !----------------------------------------------------------------------
 
@@ -533,6 +539,7 @@ contains
 
     character(len=500)                                                           :: filename
     character(len=3)                                                             :: charnanal
+    character(len=3)                                                             :: charnanal2
     integer,                                                         intent(in)  :: nanal
 
     ! Define variables returned by subroutine
@@ -612,7 +619,11 @@ contains
     ! Define character string for ensemble member file
 
     write(charnanal,'(i3.3)') nanal
-    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+    if (nanal .lt. 10) write(charnanal2,'(i1.0)') nanal
+    if (nanal .ge. 10 .and. nanal .lt. 100) write(charnanal2,'(i2.0)') nanal
+    if (nanal .ge. 100) write(charnanal2,'(i3.0)') nanal
+    !filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//charnanal
 
     !----------------------------------------------------------------------
 
@@ -1058,11 +1069,12 @@ contains
 
     character(len=500)                                                                         :: filename
     character(len=3)                                                                           :: charnanal
+    character(len=3)                                                                           :: charnanal2
     real,    dimension(:,:,:),                allocatable                            :: vargrid_native
     real,    dimension(:,:,:),                allocatable                            :: vargridin_native
     real,    dimension(:,:,:),                allocatable                            :: workgrid
     real                                                                             :: clip
-    integer iyear,imonth,iday,ihour,dh1,ierr,iw3jdn
+    integer iyear,imonth,iday,ihour,iminute,dh1,ierr,iw3jdn
     integer                                                                                    :: xdim_native
     integer                                                                                    :: ydim_native
     integer                                                                                    :: zdim_native
@@ -1144,8 +1156,11 @@ contains
     ! level; only variables updated by EnKF are changed
 
     write(charnanal,'(i3.3)') nanal
-    filename = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
-
+    if (nanal .lt. 10) write(charnanal2,'(i1.0)') nanal
+    if (nanal .ge. 10 .and. nanal .lt. 100) write(charnanal2,'(i2.0)') nanal
+    if (nanal .ge. 100) write(charnanal2,'(i3.0)') nanal
+!    filename = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+    filename = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//charnanal2
     !----------------------------------------------------------------------
 
     ! Loop through all analysis variables to be updated
@@ -1368,17 +1383,17 @@ contains
 
        if(arw) then
 
-          if (varstagger(1:1) .eq. 'Z') then ! if 'W' or 'PH' don't update surface
+           if (varstagger(1:1) .eq. 'Z') then ! if 'W' or 'PH' don't update surface
 
-             vargridin_native(:,:,2:zdim_native) =                           &
-                  & vargrid_native(:,:,2:zdim_native) +                      &
-                  & vargridin_native(:,:,2:zdim_native)
+              vargridin_native(:,:,2:zdim_native) =                           &
+                   & vargrid_native(:,:,2:zdim_native) +                      &
+                   & vargridin_native(:,:,2:zdim_native)
 
-          else
+           else
 
              vargridin_native = vargrid_native + vargridin_native
 
-          endif ! if (varstagger(1:1) .eq. 'Z')
+           endif ! if (varstagger(1:1) .eq. 'Z') ! commented by JJH, update all levels
 
        endif ! if(arw)
 
@@ -1417,6 +1432,7 @@ contains
     read(datestring(5:6),'(i2)') imonth
     read(datestring(7:8),'(i2)') iday
     read(datestring(9:10),'(i2)') ihour
+    read(datestring(11:12),'(i2)') iminute
     if (nmm .and. nmm_restart) then
        varstrname = 'NSTART_HOUR'
        vargrid_native(1,1,1) = ihour
@@ -1426,7 +1442,7 @@ contains
     !  update START_DATE, SIMULATION_START_DATE, GMT, JULYR, JULDAY 
     !  global attributes.
     !
-    write(DateStr,'(i4,"-",i2.2,"-",i2.2,"-",i2.2,"_",i2.2,":",i2.2)') iyear,imonth,iday,ihour,0,0
+    write(DateStr,'(i4,"-",i2.2,"-",i2.2,"-",i2.2,"_",i2.2,":",i2.2)') iyear,imonth,iday,ihour,iminute,0
 
     call nc_check( nf90_open(trim(filename),nf90_write,dh1),&
         myname_,'open '//trim(filename) )

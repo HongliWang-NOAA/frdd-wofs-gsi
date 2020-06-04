@@ -30,7 +30,7 @@ module stpjomod
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_o3l_ob_type, i_colvk_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
                   & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
-                  & i_pm10_ob_type, &
+                  & i_pm10_ob_type, i_td_ob_type, &
                   & i_wspd10m_ob_type,i_uwnd10m_ob_type,i_vwnd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
                     i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
                     i_aero_ob_type, i_cldch_ob_type

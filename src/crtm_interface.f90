@@ -423,6 +423,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
     n_clouds_jac_wk = n_clouds_jac
     cld_sea_only_wk = radmod%cld_sea_only
     Load_CloudCoeff = .true.
+    print*, 'N_CLOUD:',  n_actual_clouds_wk, n_clouds_fwd_wk , n_clouds_jac_wk
+
  else
     n_actual_clouds_wk = 0
     n_clouds_fwd_wk = 0
@@ -482,6 +484,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
     iclavr        = 32 ! index CLAVR cloud flag with AVHRR data
     isst_hires    = 33 ! index of interpolated hires sst (K)
  elseif (obstype == 'seviri') then
+    iclr_sky      =  7 ! index of clear sky amount
+ elseif (obstype == 'abi') then
     iclr_sky      =  7 ! index of clear sky amount
  endif
 
@@ -1358,6 +1362,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !       CRTM will reject surface coverages if greater than one and it is possible for
 !       these values to be larger due to round off.
 
+           !print*, 'SEA', data_s(ifrac_sea)
+           !print*, 'LAND', data_s(ifrac_lnd)
+           !print*, 'ICE', data_s(ifrac_ice)
+           !print*, 'SNOW', data_s(ifrac_sno)
+
            surface(1)%water_coverage        = min(max(zero,data_s(ifrac_sea)),one)
            surface(1)%land_coverage         = min(max(zero,data_s(ifrac_lnd)),one)
            surface(1)%ice_coverage          = min(max(zero,data_s(ifrac_ice)),one)
@@ -1408,10 +1417,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !       also, geometryinfo is not needed in crtm aod calculation
         if ( .not. logaod ) then
            panglr = data_s(iscan_ang)
-           if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
-           geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg  ! local zenith angle
-           geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)          ! solar zenith angle
-           geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)         ! local zenith angle
+           if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'abi')panglr = zero
+           geometryinfo(1)%sensor_zenith_angle = abs(data_s(ilzen_ang)*rad2deg)     ! local zenith angle
+           geometryinfo(1)%source_zenith_angle = abs(data_s(iszen_ang))             ! solar zenith angle
+           geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)*rad2deg    ! local zenith angle
            geometryinfo(1)%source_azimuth_angle = data_s(isazi_ang)         ! solar zenith angle
            geometryinfo(1)%sensor_scan_angle   = panglr*rad2deg             ! scan angle
            geometryinfo(1)%ifov                = nint(data_s(iscan_pos))    ! field of view position

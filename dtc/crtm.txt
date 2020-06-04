@@ -1,0 +1,3 @@
+run/run_enkf_global.ksh:31:  CRTM_ROOT=CRTM_2.2.3
+run/run_gsi_chem.ksh:58:  CRTM_ROOT=CRTM_2.2.3
+run/run_gsi_regional.ksh:36:  CRTM_ROOT=data/fix/CRTM_2.2.3

@@ -53,11 +53,13 @@ real(r_single) function taper(r)
  ! very close to exp(-(r/c)**2), where c = 0.388
  implicit none
  real(r_single), intent(in) :: r
- if(r < a5)then
-   if(r > 0.5_r_single)then
-      taper = ( ( ( ( a6*r -a2 )*r +a3 )*r +a4 )*r +a7)*r + a8 + a9/r
-   else 
-      taper = ( ( ( a1*r +a2)*r +a3 )*r -a4)*r*r + a5
+
+! change r to abs(r) to make sure it's positive, -- JJH 2017.12.20
+ if(abs(r) < a5)then
+   if(abs(r) > 0.5_r_single)then
+      taper = ( ( ( ( a6*abs(r) -a2 )*abs(r) +a3 )*abs(r) +a4 )*abs(r) +a7)*abs(r) + a8 + a9/abs(r)
+   else
+      taper = ( ( ( a1*abs(r) +a2)*abs(r) +a3 )*abs(r) -a4)*abs(r)*abs(r) + a5
    end if
  else
     taper = 0._r_single

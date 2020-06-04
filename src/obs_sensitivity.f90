@@ -47,7 +47,8 @@ use obsmod, only: cobstype, nobs_type, obscounts, &
                   i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
                   i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, &
                   i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, &
-                  i_cldch_ob_type, i_uwnd10m_ob_type, i_vwnd10m_ob_type, i_pm10_ob_type
+                  i_cldch_ob_type, i_uwnd10m_ob_type, i_vwnd10m_ob_type, i_pm10_ob_type , &
+                  i_cwp_ob_type, i_dbz_ob_type,i_td_ob_type ! JJH
 
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
@@ -77,7 +78,7 @@ integer(i_kind) :: iobsconv
 type(control_vector) :: fcsens
 real(r_kind), allocatable :: sensincr(:,:,:)
 character(len=5) :: cobtype(nobs_type)
-integer(i_kind):: my_nobs_type=34
+integer(i_kind):: my_nobs_type=39
 ! ------------------------------------------------------------------------------
 contains
 ! ------------------------------------------------------------------------------
@@ -282,7 +283,9 @@ cobtype(i_lcbas_ob_type)  ="lcbas"
 cobtype(i_cldch_ob_type)  ="cldch"
 cobtype(i_uwnd10m_ob_type) ="u10m "
 cobtype(i_vwnd10m_ob_type) ="v10m "
-
+cobtype(i_dbz_ob_type)  ="dbz  "
+cobtype(i_cwp_ob_type)  ="cwp  "
+cobtype(i_td_ob_type)   ="dewt  "
 
 return
 end subroutine init_fc_sens

@@ -90,6 +90,10 @@ module m_obsdiags
   use m_pm10Node , only:  pm10Node ! 33
   use m_cldchNode, only:  cldchNode ! 34
 
+  use m_dbzNode    , only:  dbzNode ! 
+  use m_cwpNode    , only:  cwpNode ! 
+  use m_tdNode    , only:  tdNode ! JJH 
+
   use m_obsNodeTypeManager, only: nobs_type
   use gsi_4dvar           , only: nobs_bins
 
@@ -208,6 +212,10 @@ module m_obsdiags
   public :: pm10head
   public :: cldchhead
 
+  public :: dbzhead
+  public :: cwphead
+  public :: tdhead !JJH
+
   type(obsLList),dimension(:),pointer :: pshead => null()
   type(obsLList),dimension(:),pointer :: tcphead => null()
   type(obsLList),dimension(:),pointer :: thead => null()
@@ -247,6 +255,10 @@ module m_obsdiags
 
   type(obsLList),dimension(:),pointer :: pm10head => null()
   type(obsLList),dimension(:),pointer :: cldchhead => null()
+
+  type(obsLList),dimension(:),pointer :: dbzhead => null()
+  type(obsLList),dimension(:),pointer :: cwphead => null()
+  type(obsLList),dimension(:),pointer :: tdhead => null() !JJH
 
   type(obsLList),dimension(:,:),pointer :: obsLLists => null()
 
@@ -479,7 +491,9 @@ _TIMER_ON_(myname_)
 #endif
 
         ! Sort to ensure the ordering is unique.
+    write(*,*) '-------------1'!JJH
     call lsort_()
+    write(*,*) '-------------2'!JJH
 
     call latlonRange_reset(allRanges)
     deallocate(allRanges)
@@ -654,6 +668,7 @@ _ENTRY_(myname_)
   ptr_ => oll(itype,:)
 
 _EXIT_(myname_)
+
 return
 end function ptr_obsbins_
 
@@ -683,7 +698,8 @@ _ENTRY_(myname_)
    !      use m_obsNodeTypeManager, only: obsType_index
    !      iobstype = obsType_index(vname) ! e.g. vname="ps"
    !      ptr_ => obsllists(iobstype,:)
-   
+  
+ 
       pshead => ptr_obsbins_(obsllists,'ps')
        thead => ptr_obsbins_(obsllists,'t')
        whead => ptr_obsbins_(obsllists,'w')
@@ -723,6 +739,10 @@ _ENTRY_(myname_)
 
     pm10head => ptr_obsbins_(obsllists,'pm10')
    cldchhead => ptr_obsbins_(obsllists,'cldch')
+
+     dbzhead => ptr_obsbins_(obsllists,'dbz')
+     cwphead => ptr_obsbins_(obsllists,'cwp')
+    tdhead => ptr_obsbins_(obsllists,'td') !JJH
 
 _EXIT_(myname_)
 return
@@ -773,6 +793,10 @@ _ENTRY_(myname_)
 
     pm10head => null()
    cldchhead => null()
+
+     dbzhead => null()
+     cwphead => null()
+     tdhead => null() !JJH
 
 _EXIT_(myname_)
 return

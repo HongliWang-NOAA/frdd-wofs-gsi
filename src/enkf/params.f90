@@ -62,8 +62,8 @@ character(len=2),dimension(7),public :: charfhr_anal
 ! in background, default is "firstguess." and "analysis.".
 character(len=120),dimension(7),public :: fgfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
-! analysis date string (YYYYMMDDHH)
-character(len=10), public ::  datestring
+! analysis date string (YYYYMMDDHHMM)
+character(len=12), public ::  datestring
 ! filesystem path to input files (first-guess, GSI diagnostic files).
 character(len=500),public :: datapath
 ! if deterministic=.true., the deterministic square-root filter
@@ -85,6 +85,21 @@ real(r_single),public ::  zhuberleft,zhuberright
 real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh
+
+! ***************************** adaptive inflation namelist entries *******************************
+! added by JJH
+integer,public                    :: prior_inf             = 0 !0 no prior inflation, 1 adaptive prior inflation
+real(r_single),public             :: prior_inf_initial            = 1.0_r_single
+real(r_single),public             :: prior_inf_sd_initial         = 0.0_r_single
+real(r_single),public             :: prior_inf_damping            = 0.0_r_single
+real(r_single),public             :: prior_inf_lower_bound        = 1.0_r_single
+real(r_single),public             :: prior_inf_upper_bound        = 1.e30_r_single
+real(r_single),public             :: prior_inf_sd_lower_bound     = 0.0_r_single
+character(len=200),public         :: prior_inf_file               = 'prior_inf_d01'
+character(len=200),public         :: prior_inf_sd_file            = 'prior_inf_sd_d01'
+
+! *********************************************************************************************
+
 real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
@@ -145,7 +160,13 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
-                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles, &
+                   ! adaptive_inflation -JJH
+                   prior_inf,prior_inf_file,prior_inf_sd_file,      &
+                   prior_inf_damping,            &
+                   prior_inf_initial, prior_inf_sd_initial,         &
+                   prior_inf_lower_bound, prior_inf_upper_bound, prior_inf_sd_lower_bound
+
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -159,7 +180,7 @@ integer i,nb
 
 ! defaults
 ! time (analysis time YYYYMMDDHH)
-datestring = "0000000000" ! if 0000000000 will not be used.
+datestring = "000000000000" ! if 0000000000 will not be used.
 ! corrlength (length for horizontal localization in km)
 corrlengthnh = 2800 
 corrlengthtr = 2800 
@@ -350,7 +371,7 @@ if (nproc == 0) then
    endif
    
    print *, trim(adjustl(datapath))
-   if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
+   if (datestring .ne. '000000000000') print *, 'analysis time ',datestring
    print *, nanals,' members'
    
 end if
@@ -365,7 +386,8 @@ do while (nhr_anal(nbackgrounds+1) > 0)
       if (nbackgrounds > 1) then
         fgfileprefixes(nbackgrounds+1)="firstguess_fhr"//charfhr_anal(nbackgrounds+1)//"."
       else
-        fgfileprefixes(nbackgrounds+1)="firstguess."
+        !fgfileprefixes(nbackgrounds+1)="firstguess."
+        fgfileprefixes(nbackgrounds+1)="wrfinput_d01."
       endif
      else  ! global
       fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
@@ -380,7 +402,8 @@ do nb=1,nbackgrounds
       if (nbackgrounds > 1) then
         anlfileprefixes(nb)="analysis_fhr"//charfhr_anal(nb)//"."
       else
-        anlfileprefixes(nb)="analysis."
+        !anlfileprefixes(nb)="analysis."
+        anlfileprefixes(nb)="wrfinput_d01."
       endif
      else ! global
       if (nbackgrounds > 1) then

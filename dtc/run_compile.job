@@ -1,0 +1,15 @@
+#!/bin/csh
+#==================================================================
+#SBATCH --ntasks-per-node=1
+#SBATCH -J GSI_compile
+#SBATCH -o /home/wof/WOFS/GSI-EnKF_WOFS/dtc/compile.log
+#SBATCH -e /home/wof/WOFS/GSI-EnKF_WOFS/dtc/compile.err
+#SBATCH -A smallqueue
+#SBATCH -p workq
+#SBATCH -n 1
+#SBATCH -t 4:00:00
+#==================================================================
+
+   srun -n 1 ./compile
+
+   exit 0

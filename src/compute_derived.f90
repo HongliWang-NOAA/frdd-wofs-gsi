@@ -209,12 +209,15 @@ subroutine compute_derived(mype,init_pass)
   call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
   if (n_actual_clouds>0) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,istatus);ier=istatus
+!      print* ,'QL'
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,istatus);ier=ier+istatus
+!      print*, 'QI'
      if (ier==0) then
         do k=1,nsig
            do j=1,lon2
               do i=1,lat2
                  cwgues(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+                 !print*, ges_ql(i,j,k), ges_qi(i,j,k)
               end do
            end do
         end do
@@ -307,6 +310,7 @@ subroutine compute_derived(mype,init_pass)
         end if
      end if
 
+
      if(init_pass) then
 
 ! Compute tropopause level (in pressure, hPa).  The 'pvoz'
@@ -340,6 +344,7 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end if
+
 
 ! Load guess gust, vis, pblh, lcbas, & cldch for use in limg, limv, limp, & liml.
   call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'gust',ptr2d,istatus)
@@ -584,20 +589,6 @@ subroutine compute_derived(mype,init_pass)
          if(mype==0) &
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
      endif
-!    get u ...
-     varname='u'
-     call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank3,istatus)
-     if (istatus==0) then
-         if(allocated(ges_u))then
-            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-            call stop2(999)
-         endif
-         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3)))
-         ges_u(:,:,:)=rank3
-     else
-         if(mype==0) &
-         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
-     endif
 !    get v ...
      varname='v'
      call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank3,istatus)
@@ -608,6 +599,22 @@ subroutine compute_derived(mype,init_pass)
          endif
          allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3)))
          ges_v(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3)))
+         !print*, 'V tp var', rank3
+         ges_u(:,:,:)=rank3
+         !print*, 'V tp var2'
      else
          if(mype==0) &
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'

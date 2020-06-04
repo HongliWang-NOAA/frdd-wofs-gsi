@@ -313,7 +313,8 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
      if (allocated(data_name%chn))  deallocate(data_name%chn)
 
      allocate(header_chan( header_fix%nchan))
-     allocate(data_name%chn(header_fix%idiag))
+     !allocate(data_name%chn(header_fix%idiag))
+     allocate(data_name%chn(header_fix%idiag+1 ))  !TAJ CHANGE FOR GOES IMAGER DATA
 
      data_name%fix(1) ='lat       '
      data_name%fix(2) ='lon       '

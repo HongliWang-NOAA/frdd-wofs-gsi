@@ -9,6 +9,7 @@
 ! program history log:
 !   2010-08-19 derber combine retrieval_mi,ret_ssmis,retrieval_amsre and part of setuprad
 !   2011-07-02 todling use general interface for intrisic FORTRAN math functions
+!   2017-11-20 Liu / Jones Add GOES-ABI section
 !
 ! subroutines included:
 !   sub calc_clw        - calculates cloud liquid water (clw) for microwave channels over ocean (public)
@@ -38,7 +39,7 @@ implicit none
 ! set default to private
   private
 ! set routines used externally to public
-  public :: calc_clw, ret_amsua
+  public :: calc_clw, ret_amsua, ret_abi
 
 contains
 
@@ -1890,6 +1891,55 @@ subroutine epspp (t1,s,f,ep)
   return
 
 end subroutine epspp
+
+subroutine ret_abi(tb_obs,nchanl,tsavg5,zasat,clwp_abi,ierrret,scat)
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: one, t0c, zero
+  implicit none
+
+  integer(i_kind)                   ,intent(in   ) :: nchanl
+  real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs
+  real(r_kind)                      ,intent(in   ) :: tsavg5,zasat
+  real(r_kind)                      ,intent(  out) :: clwp_abi
+  integer(i_kind)                   ,intent(  out) :: ierrret
+  real(r_kind),optional             ,intent(  out) :: scat
+
+! real(r_kind)                    ::  tpwc_amsua
+  real(r_kind),parameter:: r285=285.0_r_kind
+  real(r_kind),parameter:: r284=284.0_r_kind
+  real(r_kind),parameter:: r1000=1000.0_r_kind
+
+! Declare local variables
+  real(r_kind) :: d0, d1, d2, coszat
+
+
+  coszat=cos(zasat)
+  d0 = 8.240_r_kind - (2.622_r_kind - 1.846_r_kind*coszat)*coszat
+  d1 = 0.754_r_kind
+  d2 = -2.265_r_kind
+
+  if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
+      tb_obs(1)>zero .and. tb_obs(2)>zero) then
+     clwp_abi= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
+!    tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) +
+!    c2*log(r285-tb_obs(2)))
+     ierrret = 0
+     clwp_abi=max(zero,clwp_abi)
+!    tpwc_amsua=max(zero,tpwc_amsua)
+  else
+     clwp_abi = r1000
+!    tpwc_amsua = r1000
+     ierrret = 1
+  endif
+
+  if (present(scat)) then
+      scat=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obs(1))*tb_obs(1)  &
+           +0.454_r_kind*tb_obs(2)-tb_obs(15)
+      scat=max(zero,scat)
+  end if
+
+end subroutine ret_abi
 
 subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)  
 !$$$  subprogram documentation block

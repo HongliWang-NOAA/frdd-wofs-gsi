@@ -158,6 +158,8 @@ contains
     integer(i_kind) index
   
   ! Inquire about cloud guess fields
+
+    PRINT*, 'IN CONVERT BINARY'
     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
   
     n_loop: do n=1,9  ! loop over forecast hours in assim interval
@@ -659,14 +661,21 @@ contains
           n_position=file_offset(index+1)
           write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
-  
+ 
+  !      QHAIL
+          call this%retrieve_index(index,'QHAIL',varname_all,nrecs)
+          if(index<0) stop
+          n_position=file_offset(index+1)
+          write(6,*)'  byte offset, memoryorder for QHAIL(',k,' = ',n_position,memoryorder_all(index)
+          write(lendian_out)n_position,memoryorder_all(index)    ! offset for QHAIL(k)
+ 
   !      QNRAIN
           call this%retrieve_index(index,'QNRAIN',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
           write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)
-  
+
   !      QNRIC
           call this%retrieve_index(index,'QNICE',varname_all,nrecs)
           if(index<0) stop

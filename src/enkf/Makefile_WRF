@@ -102,7 +102,7 @@ LIBsys          =
 #------------
 # Include machine dependent compile & load options
 #------------
-  MAKE_CONF = Makefile.conf
+  MAKE_CONF = Makefile.conf_WRF
 include $(MAKE_CONF)
 
 
@@ -110,7 +110,7 @@ include $(MAKE_CONF)
 # This makefile
 # -------------
 
-  MAKE_FILE = Makefile
+  MAKE_FILE = Makefile_WRF
 
 
 # -----------
@@ -204,6 +204,7 @@ clean:
 	sorting.f90 \
 	radbias.f90 \
 	read_locinfo.f90 \
+        read_locinfo_obs.f90 \
 	readconvobs.f90 \
 	readozobs.f90 \
 	readsatobs.f90 \
@@ -212,7 +213,9 @@ clean:
 	smooth_wrf.f90 \
 	specmod.f90 \
 	statevec.f90 \
-	write_logfile.f90
+	write_logfile.f90 \
+        gridio_inf.f90 \
+        adaptive_inflate_mod.f90
 
   SRCSF90C_NOSWAP =
 
@@ -274,7 +277,7 @@ $(OBJS_NOSWAP) :
 # ------------
 # Dependencies
 # ------------
-  MAKE_DEPEND = Makefile.dependency
+  MAKE_DEPEND = Makefile.dependency_WRF
 include $(MAKE_DEPEND)
 
 # ----

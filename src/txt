@@ -1,0 +1,399 @@
+adjust_cloudobs_mod.f90:  use obsmod, only: iadate
+adjust_cloudobs_mod.f90:     anal_time(1)=iadate(1)
+adjust_cloudobs_mod.f90:     anal_time(2)=iadate(2)
+adjust_cloudobs_mod.f90:     anal_time(3)=iadate(3)
+adjust_cloudobs_mod.f90:     anal_time(5)=iadate(4)
+Binary file adjust_cloudobs_mod.o matches
+aircraftinfo.f90:    use obsmod, only: iadate
+aircraftinfo.f90:       anal_time = iadate(4)
+aircraftinfo.f90:    use obsmod, only: iadate
+aircraftinfo.f90:       iyyyymm = iadate(1)*100+iadate(2)
+Binary file aircraftinfo.o matches
+cmaq_routines.f90:  use obsmod, only: iadate,time_offset
+cmaq_routines.f90:     call w3fs21(iadate,nminanl)
+cmaq_routines.f90:     write(6,*)'read_cmaq_files:  analysis date,minutes ',iadate,nminanl
+Binary file cmaq_routines.o matches
+control_vectors.f90:use gsi_4dvar, only: iadatebgn
+control_vectors.f90:iseed=iadatebgn
+control_vectors.f90_orig:use gsi_4dvar, only: iadatebgn
+control_vectors.f90_orig:iseed=iadatebgn
+Binary file control_vectors.o matches
+cplr_read_wrf_mass_files.f90:    use obsmod, only: iadate,time_offset
+cplr_read_wrf_mass_files.f90:       call w3fs21(iadate,nminanl)
+cplr_read_wrf_mass_files.f90:       write(6,*)'READ_wrf_mass_FILES:  analysis date,minutes ',iadate,nminanl
+cplr_read_wrf_mass_files.f90:             idateg(4)=iadate(1); idateg(2)=iadate(2)
+cplr_read_wrf_mass_files.f90:             idateg(3)=iadate(3); idateg(1)=iadate(4)
+cplr_read_wrf_mass_files.f90:             idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=iadate(5)
+Binary file cplr_read_wrf_mass_files.o matches
+cplr_read_wrf_nmm_files.f90:    use obsmod, only: iadate,time_offset
+cplr_read_wrf_nmm_files.f90:       call w3fs21(iadate,nminanl)
+cplr_read_wrf_nmm_files.f90:       write(6,*)'READ_wrf_nmm_FILES:  analysis date,minutes ',iadate(1),iadate(2),iadate(3),iadate(4),nminanl
+cplr_read_wrf_nmm_files.f90:             idateg(4)=iadate(1); idateg(2)=iadate(2)
+cplr_read_wrf_nmm_files.f90:             idateg(3)=iadate(3); idateg(1)=iadate(4)
+cplr_read_wrf_nmm_files.f90:    use obsmod, only: iadate,time_offset
+cplr_read_wrf_nmm_files.f90:       call w3fs21(iadate,nminanl)
+cplr_read_wrf_nmm_files.f90:       write(6,*)'READ_nems_nmmb_FILES:  analysis date,minutes ',iadate,nminanl
+cplr_read_wrf_nmm_files.f90:             idateg(4)=iadate(1); idateg(2)=iadate(2)
+cplr_read_wrf_nmm_files.f90:             idateg(3)=iadate(3); idateg(1)=iadate(4)
+Binary file cplr_read_wrf_nmm_files.o matches
+crtm_interface.f90:  use obsmod, only: iadate
+crtm_interface.f90:           anal_time(1)=iadate(1)
+crtm_interface.f90:           anal_time(2)=iadate(2)
+crtm_interface.f90:           anal_time(3)=iadate(3)
+crtm_interface.f90:           anal_time(5)=iadate(4)
+crtm_interface.f90:  use obsmod, only: iadate
+crtm_interface.f90:      anal_time(1)=iadate(1)
+crtm_interface.f90:      anal_time(2)=iadate(2)
+crtm_interface.f90:      anal_time(3)=iadate(3)
+crtm_interface.f90:      anal_time(5)=iadate(4)
+Binary file crtm_interface.o matches
+general_write_gfsatm.f90:    use obsmod, only: iadate
+general_write_gfsatm.f90:            mydate=iadate
+Binary file general_write_gfsatm.o matches
+gesinfo.f90:!      analysis time (iadate), and NEMSIO (idate=)
+gesinfo.f90:!         %idate(1)  Hour     idate(1)  Year                iadate(1)  Year
+gesinfo.f90:!         %idate(2)  Month    idate(2)  Month               iadate(2)  Month
+gesinfo.f90:!         %idate(3)  Day      idate(3)  Day                 iadate(3)  Day
+gesinfo.f90:!         %idate(4)  Year     idate(4)  Hour                iadate(4)  Hour
+gesinfo.f90:!                             idate(5)  Minute              iadate(5)  Minute
+gesinfo.f90:  use obsmod, only: iadate,ianldate,time_offset,iadatemn
+gesinfo.f90:  use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
+gesinfo.f90:! Handle RURTMA date:  get iadatemn 
+gesinfo.f90:     iadatemn(1)=regional_time(1)  !  year
+gesinfo.f90:     iadatemn(2)=regional_time(2)  !  month
+gesinfo.f90:     iadatemn(3)=regional_time(3)  !  day
+gesinfo.f90:     iadatemn(4)=regional_time(4)  !  hour
+gesinfo.f90:     iadatemn(5)=regional_time(5)  !  minute
+gesinfo.f90:     write (6,*) 'in gesinfo: iadatemn with minutes', iadatemn
+gesinfo.f90:  iadate(1)=jda(1) ! year
+gesinfo.f90:  iadate(2)=jda(2) ! mon
+gesinfo.f90:  iadate(3)=jda(3) ! day
+gesinfo.f90:  iadate(4)=jda(5) ! hour
+gesinfo.f90:  iadate(5)=0      ! minute
+gesinfo.f90:  ida(1:3)=iadate(1:3)
+gesinfo.f90:  ida(5:6)=iadate(4:5)
+gesinfo.f90:  iadatebgn=jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
+gesinfo.f90:  iadateend=jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
+gesinfo.f90:        write(6,*)'GESINFO: Analysis date with minute: ',iadatemn
+gesinfo.f90:        write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
+Binary file gesinfo.o matches
+get_gefs_for_regional.f90:  use obsmod, only: iadate
+get_gefs_for_regional.f90:  integer(i_kind),dimension(5) :: iadate_gfs
+get_gefs_for_regional.f90:        write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+get_gefs_for_regional.f90:        write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+get_gefs_for_regional.f90:! Compute valid time from ensemble date and forecast length and compare to iadate, the analysis time
+get_gefs_for_regional.f90:  iadate_gfs(1)=jda(1) ! year
+get_gefs_for_regional.f90:  iadate_gfs(2)=jda(2) ! mon
+get_gefs_for_regional.f90:  iadate_gfs(3)=jda(3) ! day
+get_gefs_for_regional.f90:     iadate_gfs(4)=jda(5)+hrdifsig(ntguessig)-hrdifsig(it) ! hour
+get_gefs_for_regional.f90:     iadate_gfs(4)=jda(5) ! hour
+get_gefs_for_regional.f90:  iadate_gfs(5)=0      ! minute
+get_gefs_for_regional.f90:     write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
+get_gefs_for_regional.f90:     write(6,*)' in get_gefs_for_regional, iadate    =',iadate
+get_gefs_for_regional.f90:           call w3fs21(iadate,nming1)
+get_gefs_for_regional.f90:           call w3fs21(iadate_gfs,nming2)
+Binary file get_gefs_for_regional.o matches
+getsiga.f90:integer(i_kind), intent(in) :: mydate(5) ! as in iadate or ibdate, or similar
+getsiga.f90:integer(i_kind), intent(in) :: mydate(5) ! as in iadate or ibdate, or similar
+gfs_stratosphere.f90:   use obsmod, only: iadate
+gfs_stratosphere.f90:   integer(i_kind),dimension(5) :: iadate_gfs
+gfs_stratosphere.f90:            write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+gfs_stratosphere.f90:            write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+gfs_stratosphere.f90:      ! Compute valid time from ensemble date and forecast length and compare to iadate, the analysis time
+gfs_stratosphere.f90:      iadate_gfs(1)=jda(1) ! year
+gfs_stratosphere.f90:      iadate_gfs(2)=jda(2) ! mon
+gfs_stratosphere.f90:      iadate_gfs(3)=jda(3) ! day
+gfs_stratosphere.f90:      iadate_gfs(4)=jda(5) ! hour
+gfs_stratosphere.f90:      iadate_gfs(5)=0      ! minute
+gfs_stratosphere.f90:         write(6,*)' in add_gfs_stratosphere, iadate_gefs=',iadate_gfs
+gfs_stratosphere.f90:         write(6,*)' in add_gfs_stratosphere, iadate    =',iadate
+gfs_stratosphere.f90:         if (iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
+gfs_stratosphere.f90:                                        iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
+Binary file gfs_stratosphere.o matches
+glbsoi.f90:  use obsmod, only: write_diag,perturb_obs,ditype,iadate
+glbsoi.f90:     call view_cv_ad(xhatsave,iadate,clfile,.not.lnested_loops)
+glbsoi.f90:        call view_cv_ad(yhatsave,iadate,clfile,.not.lnested_loops)
+glbsoi.f90:              call view_cv(xhatsave,iadate,clfile,.not.lnested_loops)
+glbsoi.f90:           call view_cv(xhatsave,iadate,clfile,.not.lnested_loops)
+glbsoi.f90:              call view_cv(yhatsave,iadate,clfile,.not.lnested_loops)
+Binary file glbsoi.o matches
+Binary file gsi.exe matches
+gsi_4dvar.f90:!   iadatebgn         - Date and time at start of 4dvar window
+gsi_4dvar.f90:!   iadateend         - Date and time at  end  of 4dvar window
+gsi_4dvar.f90:  public :: iadatebgn,l4dvar,nobs_bins,nhr_assimilation,lsqrtb,lbicg,nsubwin
+gsi_4dvar.f90:  public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
+gsi_4dvar.f90:  integer(i_kind) :: iadatebgn, iadateend
+Binary file gsi_4dvar.o matches
+gsi_io.f90:    use obsmod, only: iadate
+gsi_io.f90:     nymd = 10000*iadate(1)+iadate(2)*100+iadate(3)
+gsi_io.f90:     nhms = 10000*iadate(4)
+gsi_io.f90:     call bkg_bias_model(xbundle,iadate(4))
+Binary file gsi_io.o matches
+gsisub.F90:  use obsmod, only: iadate,lobserver
+gsisub.F90:  call tell('gsisub','iadate(1)=',iadate(1))
+gsisub.F90:  call tell('gsisub','iadate(2)=',iadate(2))
+gsisub.F90:  call tell('gsisub','iadate(3)=',iadate(3))
+gsisub.F90:  call tell('gsisub','iadate(4)=',iadate(4))
+gsisub.F90:  call tell('gsisub','iadate(5)=',iadate(5))
+gsisub.F90:     call create_pcp_random(iadate,mype)
+gsisub.F90_orig:  use obsmod, only: iadate,lobserver
+gsisub.F90_orig:  call tell('gsisub','iadate(1)=',iadate(1))
+gsisub.F90_orig:  call tell('gsisub','iadate(2)=',iadate(2))
+gsisub.F90_orig:  call tell('gsisub','iadate(3)=',iadate(3))
+gsisub.F90_orig:  call tell('gsisub','iadate(4)=',iadate(4))
+gsisub.F90_orig:  call tell('gsisub','iadate(5)=',iadate(5))
+gsisub.F90_orig:     call create_pcp_random(iadate,mype)
+Binary file gsisub.o matches
+jfunc.f90:    use obsmod, only: iadate
+jfunc.f90:    integer(i_kind),dimension(5):: iadateg
+jfunc.f90:    iadateg=0
+jfunc.f90:    read(12,end=1234)iadateg,nlatg,nlong,nsigg,nrcleng
+jfunc.f90:    if(iadate(1) == iadateg(1) .and. iadate(2) == iadate(2) .and. &
+jfunc.f90:       iadate(3) == iadateg(3) .and. iadate(4) == iadateg(4) .and. &
+jfunc.f90:       iadate(5) == iadateg(5) .and. nlat == nlatg .and. &
+jfunc.f90:                     iadateg,nlatg,nlong,nsigg,nrcleng
+jfunc.f90:          write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
+jfunc.f90:       write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
+jfunc.f90:!   2005-03-10  treadon - remove iadate from calling list, access via obsmod
+jfunc.f90:    use obsmod, only: iadate
+jfunc.f90:       write(51) iadate,nlat,nlon,nsig,nrclen
+jfunc.f90:                  iadate,nlat,nlon,nsig,nrclen
+Binary file jfunc.o matches
+Binary file libgsi.a matches
+model_ad.F90:use gsi_4dvar, only: iadateend
+model_ad.F90:nymdi  =  iadateend/100
+model_ad.F90:nhmsi  = (iadateend-100*nymdi)*10000
+Binary file model_ad.o matches
+model_tl.F90:use gsi_4dvar, only: iadatebgn
+model_tl.F90:nymdi  =  iadatebgn/100
+model_tl.F90:nhmsi  = (iadatebgn-100*nymdi)*10000
+Binary file model_tl.o matches
+ncepgfs_io.f90:!   2005-03-10  treadon - remove iadate from calling list, access via obsmod
+ncepgfs_io.f90:    use obsmod, only: iadate
+ncepgfs_io.f90:       head%idate(1)=iadate(4)  ! hour
+ncepgfs_io.f90:       head%idate(2)=iadate(2)  ! month
+ncepgfs_io.f90:       head%idate(3)=iadate(3)  ! day
+ncepgfs_io.f90:       head%idate(4)=iadate(1)  ! year
+ncepgfs_io.f90:       write(6,100) lonb,latb,houra,iadate(1:4),iret
+ncepgfs_io.f90:    use obsmod,  only: iadate,ianldate
+ncepgfs_io.f90:          write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
+ncepgfs_io.f90:          write(6,101) fname_sfctsk,lonb,latb,houra,iadate(1:4),iret
+ncepgfs_io.f90:       write(6,102) fname_nstanl,lonb,latb,houra,iadate(1:4),iret
+Binary file ncepgfs_io.o matches
+ncepnems_io.f90:!      analysis time (iadate), and NEMSIO (idate=)
+ncepnems_io.f90:!         %idate(1)  Hour     idate(1)  Year                iadate(1)  Year
+ncepnems_io.f90:!         %idate(2)  Month    idate(2)  Month               iadate(2)  Month
+ncepnems_io.f90:!         %idate(3)  Day      idate(3)  Day                 iadate(3)  Day
+ncepnems_io.f90:!         %idate(4)  Year     idate(4)  Hour                iadate(4)  Hour
+ncepnems_io.f90:!                             idate(5)  Minute              iadate(5)  Minute
+ncepnems_io.f90:    use obsmod, only: iadate
+ncepnems_io.f90:       jdate(5) = iadate(5)  ! analysis minute
+ncepnems_io.f90:    use obsmod, only: iadate
+ncepnems_io.f90:!      Replace header record date with analysis time from iadate
+ncepnems_io.f90:       jdate(1) = iadate(1)  ! analysis year
+ncepnems_io.f90:       jdate(2) = iadate(2)  ! analysis month
+ncepnems_io.f90:       jdate(3) = iadate(3)  ! analysis day
+ncepnems_io.f90:       jdate(4) = iadate(4)  ! analysis hour
+ncepnems_io.f90:       jdate(5) = iadate(5)  ! analysis minute
+ncepnems_io.f90:    use obsmod, only: iadate
+ncepnems_io.f90:!      Replace header record date with analysis time from iadate
+ncepnems_io.f90:       jdate(1) = iadate(1)  ! analysis year
+ncepnems_io.f90:       jdate(2) = iadate(2)  ! analysis month
+ncepnems_io.f90:       jdate(3) = iadate(3)  ! analysis day
+ncepnems_io.f90:       jdate(4) = iadate(4)  ! analysis hour
+ncepnems_io.f90:       jdate(5) = iadate(5)  ! analysis minute
+ncepnems_io.f90:       write(6,100) fname_sfcanl,lonb,latb,houra,iadate(1:4),iret
+ncepnems_io.f90:       write(6,101) fname_sfctsk,lonb,latb,houra,iadate(1:4),iret
+ncepnems_io.f90:       write(6,200) fname_nstanl,lonb,latb,houra,iadate(1:4),iret
+Binary file ncepnems_io.o matches
+observer.F90:       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate,luse_obsdiag
+observer.F90:!   2011-05-24  yang    - pass iadate(3) (day of the month) into read_guess
+observer.F90:  call create_bkgbias_grids(iadate(4))
+observer.F90:  call read_guess(iadate(1),iadate(2),iadate(3),mype)
+Binary file observer.o matches
+obsmod.F90:!   def iadate       - analysis date and time array
+obsmod.F90:!   def iadatemn     - similar to iadate, but with non-zero minute information
+obsmod.F90:  public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
+obsmod.F90:  integer(i_kind),dimension(5):: iadate
+obsmod.F90:  integer(i_kind),dimension(5):: iadatemn
+obsmod.F90_orig:!   def iadate       - analysis date and time array
+obsmod.F90_orig:!   def iadatemn     - similar to iadate, but with non-zero minute information
+obsmod.F90_orig:  public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
+obsmod.F90_orig:  integer(i_kind),dimension(5):: iadate
+obsmod.F90_orig:  integer(i_kind),dimension(5):: iadatemn
+obsmod.F90_version1:!   def iadate       - analysis date and time array
+obsmod.F90_version1:!   def iadatemn     - similar to iadate, but with non-zero minute information
+obsmod.F90_version1:  public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
+obsmod.F90_version1:  integer(i_kind),dimension(5):: iadate
+obsmod.F90_version1:  integer(i_kind),dimension(5):: iadatemn
+Binary file obsmod.o matches
+oneobmod.F90:    use obsmod, only: offtime_data,iadate,bmiss
+oneobmod.F90:    idate=iadate(1)*1000000+iadate(2)*10000+iadate(3)*100+iadate(4)
+Binary file oneobmod.o matches
+pcpinfo.f90:  subroutine create_pcp_random(iadate,mype)
+pcpinfo.f90:!      iadate - analysis date (year, month, day, hour, minute)
+pcpinfo.f90:    integer(i_kind),dimension(5),intent(in   ) :: iadate    
+pcpinfo.f90:       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) + 1e2_r_kind*iadate(3) + iadate(4)
+prewgt.f90:  use obsmod, only: iadate
+prewgt.f90:  rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) &
+prewgt.f90:       + 1e2_r_kind*iadate(3) + iadate(4)
+Binary file prewgt.o matches
+read_Lightning.f90:  use obsmod,only: iadate
+read_Lightning.f90:      iyref=iadate(1)        
+read_Lightning.f90:      imref=iadate(2)
+read_Lightning.f90:      idref=iadate(3)
+read_Lightning.f90:      ihref=iadate(4)
+Binary file read_Lightning.o matches
+read_aeribufr.f90:    use obsmod, only: iadate
+read_aeribufr.f90:                                    idate5(1)=iadate(1)
+read_aeribufr.f90:                                    idate5(2)=iadate(2)
+read_aeribufr.f90:                                    idate5(3)=iadate(3)
+read_aeribufr.f90:                                    idate5(4)=iadate(4)
+read_aeribufr.f90:                                    idate5(5)=iadate(5) 
+read_aeribufr.f90:                                !print*,'read_aeribufr:idate,iadate,toff,timeobs,time_correction,t4dv,time',idate,iadate,toff,timeobs,time_correction,t4dv,time
+read_aeribufr.f90:                                !print*,'READ_AERIBUFR:timeobs=',timeobs,'toff=',toff,'t4dv=',t4dv,'time_correction=',time_correction,'timeobs=',timeobs,'time=',time,'iadate=',iadate,'levs=',levs,'ctwind(nc)=',ctwind(nc),'twindin=',twindin
+Binary file read_aeribufr.o matches
+read_cwp.f90:  use obsmod, only: iadatemn,debugmode
+read_cwp.f90:  call w3fs21(iadatemn,mins_an)  !mins_an -integer number of mins snce 01/01/1978
+Binary file read_cwp.o matches
+read_dbz.f90:  use obsmod, only: iadatemn,make_sim_obs,doradaroneob,oneoblat,oneoblon,oneobheight,oneobradid, &
+read_dbz.f90:  call w3fs21(iadatemn,mins_an)  !mins_an -integer number of mins snce 01/01/1978
+Binary file read_dbz.o matches
+read_dlbufr.f90:    use obsmod, only: iadate
+read_dlbufr.f90:                                    idate5(1)=iadate(1)
+read_dlbufr.f90:                                    idate5(2)=iadate(2)
+read_dlbufr.f90:                                    idate5(3)=iadate(3)
+read_dlbufr.f90:                                    idate5(4)=iadate(4)
+read_dlbufr.f90:                                    idate5(5)=iadate(5) 
+read_dlbufr.f90:                                !print*,'READ_DLBUFR:timeobs=',timeobs,'toff=',toff,'t4dv=',t4dv,'time_correction=',time_correction,'timeobs=',timeobs,'time=',time,'iadate=',iadate
+Binary file read_dlbufr.o matches
+read_files.f90:!      analysis time (iadate), and NEMSIO (idate=)
+read_files.f90:!         %idate(1)  Hour     idate(1)  Year                iadate(1)  Year
+read_files.f90:!         %idate(2)  Month    idate(2)  Month               iadate(2)  Month
+read_files.f90:!         %idate(3)  Day      idate(3)  Day                 iadate(3)  Day
+read_files.f90:!         %idate(4)  Year     idate(4)  Hour                iadate(4)  Hour
+read_files.f90:!                             idate(5)  Minute              iadate(5)  Minute
+read_files.f90:  use obsmod, only: iadate
+read_files.f90:     call w3fs21(iadate,nminanl)
+read_files.f90:     write(6,*)'READ_FILES:  analysis date,minutes ',iadate,nminanl
+Binary file read_files.o matches
+read_gfs_ozone_for_regional.f90:  use obsmod, only: iadate
+read_gfs_ozone_for_regional.f90:  integer(i_kind),dimension(5) :: iadate_gfs
+read_gfs_ozone_for_regional.f90:        write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+read_gfs_ozone_for_regional.f90:        write(6,*) ' iadate(y,m,d,hr,min)=',iadate
+read_gfs_ozone_for_regional.f90:! Compute valid time from guess date and forecast length and compare to iadate, the analysis time
+read_gfs_ozone_for_regional.f90:  iadate_gfs(1)=jda(1) ! year
+read_gfs_ozone_for_regional.f90:  iadate_gfs(2)=jda(2) ! mon
+read_gfs_ozone_for_regional.f90:  iadate_gfs(3)=jda(3) ! day
+read_gfs_ozone_for_regional.f90:  iadate_gfs(4)=jda(5) ! hour
+read_gfs_ozone_for_regional.f90:  iadate_gfs(5)=0      ! minute
+read_gfs_ozone_for_regional.f90:     write(6,*)' in read_gfs_ozone_for_regional, iadate_gfs=',iadate_gfs
+read_gfs_ozone_for_regional.f90:     write(6,*)' in read_gfs_ozone_for_regional, iadate    =',iadate
+read_gfs_ozone_for_regional.f90:  if((iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
+read_gfs_ozone_for_regional.f90:      iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5)) .and. .not. wrf_nmm_regional ) then
+Binary file read_gfs_ozone_for_regional.o matches
+read_gps.f90:  use obsmod, only: iadate,ref_obs
+read_gps.f90:           call w3fs21(iadate,mincy) ! analysis time in minutes
+Binary file read_gps.o matches
+read_l2bufr_mod.f90:!                          iadate (passed from obsmod), to prevent all radar data being tossed.
+read_l2bufr_mod.f90:    use obsmod,only: iadate
+read_l2bufr_mod.f90:       iyref=iadate(1)              !????  add mods so can be used in global mode
+read_l2bufr_mod.f90:       imref=iadate(2)
+read_l2bufr_mod.f90:       idref=iadate(3)
+read_l2bufr_mod.f90:       ihref=iadate(4)
+Binary file read_l2bufr_mod.o matches
+read_lidar.f90:  use obsmod, only: iadate,offtime_data
+read_lidar.f90:     idate5(1)=iadate(1)
+read_lidar.f90:     idate5(2)=iadate(2)
+read_lidar.f90:     idate5(3)=iadate(3)
+read_lidar.f90:     idate5(4)=iadate(4)
+Binary file read_lidar.o matches
+read_obs.F90:  use gsi_4dvar, only: iadatebgn,iadateend
+read_obs.F90:         if (idate<iadatebgn.or.idate>iadateend) then
+read_obs.F90:            write(6,*)'Analysis start  :',iadatebgn
+read_obs.F90:            write(6,*)'Analysis end    :',iadateend
+read_obs.F90:    use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
+read_obs.F90:    call w3fs21(iadate,nmind)
+read_obs.F90:       rseed=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000+mype
+read_obs.F90_orig:  use gsi_4dvar, only: iadatebgn,iadateend
+read_obs.F90_orig:         if (idate<iadatebgn.or.idate>iadateend) then
+read_obs.F90_orig:            write(6,*)'Analysis start  :',iadatebgn
+read_obs.F90_orig:            write(6,*)'Analysis end    :',iadateend
+read_obs.F90_orig:    use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
+read_obs.F90_orig:    call w3fs21(iadate,nmind)
+read_obs.F90_orig:       rseed=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000+mype
+read_obs.F90_version1:  use gsi_4dvar, only: iadatebgn,iadateend
+read_obs.F90_version1:         if (idate<iadatebgn.or.idate>iadateend) then
+read_obs.F90_version1:            write(6,*)'Analysis start  :',iadatebgn
+read_obs.F90_version1:            write(6,*)'Analysis end    :',iadateend
+read_obs.F90_version1:    use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
+read_obs.F90_version1:    call w3fs21(iadate,nmind)
+read_obs.F90_version1:       rseed=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000+mype
+Binary file read_obs.o matches
+read_pblh.f90:      use obsmod, only: iadate,offtime_data,bmiss
+read_pblh.f90:        idate5(1)=iadate(1)
+read_pblh.f90:        idate5(2)=iadate(2)
+read_pblh.f90:        idate5(3)=iadate(3)
+read_pblh.f90:        idate5(4)=iadate(4)
+read_pblh.f90:!       anal_time(1)=iadate(1)
+read_pblh.f90:!       anal_time(2)=iadate(2)
+read_pblh.f90:!       anal_time(3)=iadate(3)
+read_pblh.f90:!       anal_time(5)=iadate(4)
+Binary file read_pblh.o matches
+read_prepbufr.f90:  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
+read_prepbufr.f90:              idate5(1)=iadate(1)
+read_prepbufr.f90:              idate5(2)=iadate(2)
+read_prepbufr.f90:              idate5(3)=iadate(3)
+read_prepbufr.f90:              idate5(4)=iadate(4)
+read_prepbufr.f90:              idate5(5)=iadate(5)
+read_prepbufr.f90:           iyyyymm = iadate(1)*100+iadate(2)
+read_prepbufr.f90_orig:  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
+read_prepbufr.f90_orig:              idate5(1)=iadate(1)
+read_prepbufr.f90_orig:              idate5(2)=iadate(2)
+read_prepbufr.f90_orig:              idate5(3)=iadate(3)
+read_prepbufr.f90_orig:              idate5(4)=iadate(4)
+read_prepbufr.f90_orig:           iyyyymm = iadate(1)*100+iadate(2)
+read_prepbufr.f90_version1:  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
+read_prepbufr.f90_version1:              idate5(1)=iadate(1)
+read_prepbufr.f90_version1:              idate5(2)=iadate(2)
+read_prepbufr.f90_version1:              idate5(3)=iadate(3)
+read_prepbufr.f90_version1:              idate5(4)=iadate(4)
+read_prepbufr.f90_version1:              idate5(5)=iadate(5)
+read_prepbufr.f90_version1:           iyyyymm = iadate(1)*100+iadate(2)
+Binary file read_prepbufr.o matches
+read_radar.f90:  use obsmod, only: iadate,ianldate,l_foreaft_thin
+read_radar.f90:  call w3fs21(iadate,mincy) ! analysis time in minutes
+Binary file read_radar.o matches
+read_radar_wind_netcdf.f90:  use obsmod, only: iadatemn,mintiltvr,maxtiltvr,minobrangevr,maxobrangevr,rmesh_vr,zmesh_vr
+read_radar_wind_netcdf.f90:  call w3fs21(iadatemn,mins_an)  !mins_an -integer number of mins snce 01/01/1978
+Binary file read_radar_wind_netcdf.o matches
+read_superwinds.f90:  use obsmod, only: iadate,offtime_data
+read_superwinds.f90:     call w3fs21(iadate,minan)           !  analysis ref time in minutes relative to historic date
+Binary file read_superwinds.o matches
+setuprhsall.f90:  use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
+setuprhsall.f90:        idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+setuprhsall.f90_orig:  use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
+setuprhsall.f90_orig:        idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+setuprhsall.f90_version1:  use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
+setuprhsall.f90_version1:        idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+Binary file setuprhsall.o matches
+sst_retrieval.f90:!     iadate       - analysis time window (00, 06, 12, 18)
+sst_retrieval.f90:!     dtime        - observed time distance from iadate
+sst_retrieval.f90:    use obsmod, only: iadate,rmiss_single
+sst_retrieval.f90:          idat8(1) = iadate(1)              ! 4-digit year
+sst_retrieval.f90:          idat8(2) = iadate(2)              ! months of a year
+sst_retrieval.f90:          idat8(3) = iadate(3)              ! days of a month
+sst_retrieval.f90:          idat8(5) = iadate(4)              ! hours of a day
+sst_retrieval.f90:          idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+Binary file sst_retrieval.o matches
+support_2dvar.f90:!   2016-06-07  yang    - add iadatemn
+support_2dvar.f90:  use obsmod, only: time_offset,iadatemn
+support_2dvar.f90:!    use iadatemn to get nminal--confirm with Manuel: for hourly RTMA, the
+support_2dvar.f90:     call w3fs21(iadatemn,nminanl)
+support_2dvar.f90:     write(6,*)'READ_2d_FILES:  analysis date,minutes ',iadatemn,nminanl
+support_2dvar.f90:  use obsmod, only: iadate
+support_2dvar.f90:  call w3fs21(iadate,iseed) !use # of minutes since 0000, 1 jan 1978
+support_2dvar.f90:  nt=sum(iadate)            !arbitrarily select number of times to call
+support_2dvar.f90:  print*,'in shuffle: iadate,iseed,nt=',iadate,iseed,nt
+Binary file support_2dvar.o matches
+write_all.F90:!   2005-03-10  treadon - remove iadate and igdate

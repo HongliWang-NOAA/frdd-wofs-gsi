@@ -148,6 +148,7 @@ module gridmod
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
   public :: wrf_mass_hybridcord
+  public :: use_reflectivity
 
   interface strip
      module procedure strip_single_rank33_
@@ -179,6 +180,8 @@ module gridmod
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
+
+  logical use_reflectivity  ! .t. for using reflectivity for NMMB
 
   logical use_readin_anl_sfcmask        ! .t. for using readin surface mask
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
@@ -575,11 +578,13 @@ contains
        
     endif
 
+
 ! Initialize structures for grid(s)
     inner_vars=1
     num_fields=n3d*nsig+n2d
     allocate(vector(num_fields))
     vector=.false.
+
 
 ! Find and flag vector fields (assumes motley at the end)
     ipsf = getindex(cvars(1:n3d+n2d),'sf')
@@ -611,6 +616,8 @@ contains
        endif
 
     endif
+
+
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
     deallocate(vector)
@@ -640,6 +647,7 @@ contains
        ijn(i)       =grd_a%ijn(i)
        displs_g(i)  =grd_a%displs_g(i)
     end do
+
 
 !#omp parallel private(nth,tid)
     nth = omp_get_max_threads()
@@ -1249,6 +1257,9 @@ contains
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,nsig_soil 
+       write(6,*)'GRIDMOD: inunit: FLNAME: regional_time',filename,  &
+              (regional_time (i),i=1,6)!jjh
+
        regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
 
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
@@ -2072,6 +2083,8 @@ end subroutine init_general_transform
        x = i0+detinv*(e2tilde*dtilde-d2tilde*etilde) 
        y = j0+detinv*(d1tilde*etilde-e1tilde*dtilde) 
     endif
+
+    !print*, 'BOUNDS:', rlon_min_dd, rlon_max_dd, rlat_min_dd, rlat_max_dd
 
     outside=x < rlon_min_dd .or. x > rlon_max_dd .or. &
             y < rlat_min_dd .or. y > rlat_max_dd

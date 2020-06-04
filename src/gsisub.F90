@@ -132,8 +132,8 @@ subroutine gsisub(mype,init_pass,last_pass)
   end if
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
-  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional &
-       .or. cmaq_regional) call radar_bufr_read_all(npe,mype)
+!  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional &
+!       .or. cmaq_regional) call radar_bufr_read_all(npe,mype)
 !at some point cmaq will become also an online met/chem model (?)
 
 ! Read info files for assimilation of various obs

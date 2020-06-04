@@ -613,6 +613,7 @@ contains
        read(lunin,100,iostat=istat) cflg,crecord
        if (istat /= 0) exit
        nlines=nlines+1
+
        if (cflg == '!') cycle
        read(crecord,*,iostat=istat) nusis_temp,nuchan_temp,iuse_rad_temp,&
             varch_temp,varch_cld_temp,ermax_rad_temp,b_rad_temp,pg_rad_temp,icld_det_temp  
@@ -640,7 +641,6 @@ contains
       close(lunin)
       return
     end if
-
 
 !   Allocate arrays to hold radiance information
 !     nuchan    - channel number
@@ -673,10 +673,12 @@ contains
     rewind(lunin)
     j=1
     do k=1,nlines
+
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),varch(j), &
             varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j),icw,iaeros
+
 
        ! The following is to sort out some historical naming conventions
        select case (nusis(j)(1:4))
@@ -1534,7 +1536,7 @@ contains
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi,gmi,amsr2,saphir
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
-   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri
+   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri, abi
 
    character(len=20):: obstype,platid
    character(len=20):: satsens,satsens_id
@@ -1706,6 +1708,7 @@ contains
                    obstype == 'sndrd4'
       goes_img   = obstype == 'goes_img'
       ahi        = obstype == 'ahi'
+      abi        = obstype == 'abi'
       avhrr      = obstype == 'avhrr'
       avhrr_navy = obstype == 'avhrr_navy'
       ssmi       = obstype == 'ssmi'
@@ -1725,7 +1728,7 @@ contains
       saphir     = obstype == 'saphir'
       amsr2      = obstype == 'amsr2'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. ahi .or. seviri .or. tmi
+                .or. ahi .or. seviri .or. tmi .or. abi
 !     Allocate arrays and initialize
       if (mean_only) then 
          np=1

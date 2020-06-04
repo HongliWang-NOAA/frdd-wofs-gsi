@@ -13,7 +13,7 @@ module guess_grids
 ! !USES:
  
   use kinds, only: r_single,r_kind,i_kind
-  use constants, only: max_varname_length
+  use constants, only: max_varname_length, r1000, rd
   use gridmod, only: regional
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional
   use gridmod, only: eta1_ll
@@ -147,6 +147,10 @@ module guess_grids
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
 
+  public :: ges_rho
+  public :: ges_w_btlev
+!  public :: ges_dbz
+
   public :: ges_initialized
 
   public :: nfldsig_all,nfldsig_now,hrdifsig_all
@@ -244,6 +248,10 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsi! log(interface pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen  ! sensible temperature
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
+
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_w_btlev
+!  real(r_kind),allocatable,dimension(:,:,:,:):: ges_dbz
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_rho
 
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat   ! 4d qsat array
@@ -395,7 +403,7 @@ contains
 
 ! !USES:
 
-    use constants,only: zero,one
+    use constants,only: zero,one,r1000,rd
     use gridmod, only: lat2,lon2,nsig
     implicit none
 
@@ -457,6 +465,7 @@ contains
             ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+1,nfldsig),&
             ges_tsen(lat2,lon2,nsig,nfldsig),&
             ges_teta(lat2,lon2,nsig,nfldsig),&
+            ges_rho(lat2,lon2,nsig,nfldsig),&
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
@@ -503,6 +512,7 @@ contains
                    ges_qsat(i,j,k,n)=zero
                    ges_tsen(i,j,k,n)=zero
                    ges_teta(i,j,k,n)=zero
+                   ges_rho(i,j,k,n)=zero
                    geop_hgtl(i,j,k,n)=zero
                 end do
              end do
@@ -693,9 +703,10 @@ contains
 !  When proper connection to ESMF is complete,
 !  the following will not be needed here
 !  ------------------------------------------
+
    call gsi_chemguess_get('dim',ntgases,istatus)
    if(istatus/=0) then
-      if(mype==0) write(6,*) myname_, ': trouble getting number of chem/gases'
+      if(mype==0) write(6,*) myname_, ': trouble getting number of chem/gases 1'
       return
    endif
    if(ntgases==0) return
@@ -703,7 +714,7 @@ contains
       allocate (tgases(ntgases))
       call gsi_chemguess_get('gsinames',tgases,istatus)
       if(istatus/=0) then
-         if(mype==0) write(6,*) myname_, ': trouble getting name of chem/gases'
+         if(mype==0) write(6,*) myname_, ': trouble getting name of chem/gases 2'
          return
       endif
 
@@ -711,7 +722,7 @@ contains
 !     ------------------------------------------------
       call gsi_chemguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
       if(istatus/=0) then
-         if(mype==0) write(6,*) myname_, ': trouble allocating mem for chem/gases'
+         if(mype==0) write(6,*) myname_, ': trouble allocating mem for chem/gases 3'
          return
       endif
    endif
@@ -799,7 +810,7 @@ contains
     call destroy_ges_tendencies
 !
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
-         ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
+         ges_tsen,ges_teta,ges_rho,geop_hgtl,geop_hgti,ges_prslavg,&
          tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
@@ -1006,6 +1017,13 @@ contains
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
          cmaq_regional,pt_ll,aeta2_ll,&
          aeta1_ll,eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
+
+    use control_vectors,only: l_init_dbz
+    use mpimod, only: mype
+    use setupdbz_lib,only: hx_wsm6
+    use gsi_bundlemod, only: GSI_BundleGetPointer
+    use constants, only: max_varname_length
+
     implicit none
 
 ! !DESCRIPTION: populate guess pressure arrays
@@ -1038,6 +1056,13 @@ contains
 !   Declare local parameter
     character(len=*),parameter::myname_=myname//'*load_prsges'
     real(r_kind),parameter:: r1013=1013.0_r_kind
+!    real(r_kind), pointer :: ges_qr(:,:,:)
+!    real(r_kind), pointer :: ges_qs(:,:,:)
+!    real(r_kind), pointer :: ges_qg(:,:,:)
+    character(max_varname_length),allocatable,dimension(:) :: guess
+    integer(i_kind) ic, nguess
+    integer(i_kind) istatus
+
 
 !   Declare local variables
     real(r_kind) kap1,kapr,trk
@@ -1053,6 +1078,7 @@ contains
     do jj=1,nfldsig
        call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps,ips)
        if(ips/=0) call die(myname_,': ps not available in guess, abort',ips)
+
        call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv,itv)
        if(idvc5==3) then
           if(itv/=0) call die(myname_,': tv must be present when idvc5=3, abort',itv)
@@ -1096,6 +1122,7 @@ contains
     end do
 
     if(regional) then
+
        if (wrf_nmm_regional.or.nems_nmmb_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
@@ -1131,10 +1158,13 @@ contains
        if (wrf_mass_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
-             call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
+             ! TURN OFF SINCE ALREAD DEFINED TAJ
+             !call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps,ips)          
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
+                      ! TURN OFF SINCE ALREAD DEFINED TAJ
+                      !ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j)-pt_ll)+pt_ll)
                       ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j)-pt_ll)+&
                                                     aeta2_ll(k) + pt_ll)
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
@@ -1142,6 +1172,7 @@ contains
                 end do
              end do
           end do
+
        end if   ! end if wrf_mass regional block
 
     else
@@ -1183,6 +1214,57 @@ contains
        endif
 
     end if  !  end regional/global block
+
+
+!   Compute density for dBZ assimilation purposes - multiply by 1000 to convert
+!   to Pa
+!   Add by WYM
+    do jj=1,nfldsig
+!       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv,itv)
+       if(idvc5==3) then
+          if(itv/=0) call die(myname_,': tv must be present when idvc5=3,abort',itv)
+       endif
+       do j=1,lon2
+          do i=1,lat2
+             do k=1,nsig
+                  ges_rho(i,j,k,jj)=(ges_prsl(i,j,k,jj)/(ges_tv(i,j,k)*rd))*r1000
+             end do
+          end do
+       end do
+    end do
+
+ if(mype.eq.0) then
+  write(6,*)'think in guess_grid/load_prs l_init_dbz is ',l_init_dbz
+ endif
+
+!  if (l_init_dbz) then
+  ! Inquire about guess fields
+!  call gsi_metguess_get('dim',nguess,istatus)
+!  if (nguess<=0)  then
+!  write(6,*)'wrong nguess <=0 , stop'
+!  stop
+!  endif
+!     allocate(guess(nguess))
+!     call gsi_metguess_get('gsinames',guess,istatus)
+
+!    do jj=1,nfldsig
+
+!        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(jj), 'qr', ges_qr,istatus )
+!        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(jj), 'qs', ges_qs,istatus )
+!        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(jj), 'qg', ges_qg,istatus )
+
+!       do j=1,lon2
+!          do i=1,lat2
+!             do k=1,nsig
+!               call hx_wsm6(ges_qr(i,j,k),ges_qg(i,j,k),ges_qs(i,j,k),ges_rho(i,j,k,jj),ges_tsen(i,j,k,jj), &
+!  ges_dbz(i,j,k,jj),.false.)
+!             end do
+!          end do
+!       end do
+
+!    enddo ! jj
+!  endif
+
 
 ! For regional applications only, load variables containing mean
 ! surface pressure and pressure profile at the layer midpoints
@@ -1337,6 +1419,7 @@ contains
 !      Compute compressibility factor (Picard et al 2008) and geopotential heights at interface
 !      between layers
 
+
        do jj=1,nfldsig
           ier=0
           call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z'  ,ges_z ,istatus)
@@ -1405,6 +1488,7 @@ contains
           ier=ier+istatus
           call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
           ier=ier+istatus
+
           if(ier/=0) exit
           do j=1,lon2
              do i=1,lat2
@@ -1427,14 +1511,16 @@ contains
        end do
        if(ier/=0) return
 
+
 !      Compute geopotential height at interface between layers
        do jj=1,nfldsig
-          ier=0
-          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z'  ,ges_z  ,istatus)
-          ier=ier+istatus
-          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
-          ier=ier+istatus
-          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
+!          ier=0
+!       ******** COMMENT OUT THIS SECOUND CALL DUE TO POTENTIAL MEM-LEAK: TAJ
+!          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z'  ,ges_z  ,istatus)
+!          ier=ier+istatus
+!          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+!          ier=ier+istatus
+!          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
           do j=1,lon2
              do i=1,lat2
                 k=1

@@ -1,0 +1,14 @@
+#!/bin/csh
+#==================================================================
+#SBATCH --ntasks-per-node=24
+#SBATCH -J GSIEnKF3.6_compile_util
+#SBATCH -o /home/junjun.hu/WRF_GSIEnKF/GSI_CODE/Intel/2018/Test/dtc/util/Analysis_Utilities/read_diag/make.log
+#SBATCH -e /home/junjun.hu/WRF_GSIEnKF/GSI_CODE/Intel/2018/Test/util/Analysis_Utilities/read_diag/make.err
+#SBATCH -n 1
+#SBATCH -t 1:00:00
+#==================================================================
+
+   source ~/.tcshrc
+   srun -n 1 make
+
+   exit 0

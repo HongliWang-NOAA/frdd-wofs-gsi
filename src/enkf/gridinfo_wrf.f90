@@ -20,6 +20,8 @@ module gridinfo
   !               pressure profile (i.e., presslmn) is computed as it is in  
   !               within the GSI subroutine get_wrf_nmm_ensperts.F90.
   !               Henry R. Winterbottom
+  !   2016-05-01  Added Thompson microphysics variables (TAJ)
+  !   2017-05-01  Added NSSL-2M microphysics variables (NY)
   !
   ! attributes:
   !   language:  f95
@@ -219,6 +221,173 @@ contains
           gridvarstring(5) = "W"
           gridvarstring(6) = "PH"
           gridvarstring(7) = "MU"
+          nvarhumid = 4
+
+      else if (nvars .eq. 11) then
+
+          if (nproc .eq. 0) then
+
+             ! Print message to user
+
+             write(6,*) 'Updating U, V, T, QVAPOR, W, PH, QRAIN, QSNOW, QGRAUP, QICE and MU for WRF-ARW...'
+
+          endif ! if (nproc .eq. 0) then
+
+          ! *USER*: The following variables will be updated using the
+          ! innovations and increments produced by the data
+          ! assimilation
+
+          gridvarstring(1) = "U"
+          gridvarstring(2) = "V"
+          gridvarstring(3) = "T"
+          gridvarstring(4) = "QVAPOR"
+          gridvarstring(5) = "W"
+          gridvarstring(6) = "PH"
+          gridvarstring(12) = "MU"
+          gridvarstring(11) = "QCLOUD"
+          gridvarstring(8) = "QRAIN"
+          gridvarstring(9) = "QSNOW"
+          gridvarstring(7) = "QGRAUP"
+          gridvarstring(10) = "QICE"
+          nvarhumid = 4
+
+       else if (nvars .eq. 12) then
+
+          if (nproc .eq. 0) then
+
+             ! Print message to user
+
+             write(6,*) 'Updating U, V, T, QVAPOR, W, PH, QRAIN, QNRAIN, QSNOW, QGRAUP, QICE and MU for WRF-ARW...'
+
+          endif ! if (nproc .eq. 0) then
+
+          ! *USER*: The following variables will be updated using the
+          ! innovations and increments produced by the data
+          ! assimilation
+
+          gridvarstring(1) = "U"
+          gridvarstring(2) = "V"
+          gridvarstring(3) = "T"
+          gridvarstring(4) = "QVAPOR"
+          gridvarstring(5) = "W"
+          gridvarstring(6) = "PH"
+          gridvarstring(12) = "QNRAIN"
+          gridvarstring(13) = "MU"
+          gridvarstring(11) = "QCLOUD"
+          gridvarstring(8) = "QRAIN"
+          gridvarstring(9) = "QSNOW"
+          gridvarstring(7) = "QGRAUP"
+          gridvarstring(10) = "QICE"
+          nvarhumid = 4
+
+       else if (nvars .eq. 13) then
+
+       if (nproc .eq. 0) then
+
+             ! Print message to user
+
+             write(6,*) 'Updating U, V, T, QVAPOR, W, PH, QRAIN, QNRAIN, QSNOW,QGRAUP, QICE, '
+             write(6,*) '         QNICE, H_DIABATIC and MU for WRF-ARW...'
+
+          endif ! if (nproc .eq. 0) then
+
+          ! *USER*: The following variables will be updated using the
+          ! innovations and increments produced by the data
+          ! assimilation
+
+          gridvarstring(1) = "U"
+          gridvarstring(2) = "V"
+          gridvarstring(3) = "T"
+          gridvarstring(4) = "QVAPOR"
+          gridvarstring(5) = "W"
+          gridvarstring(6) = "PH"
+          gridvarstring(12) = "QNRAIN"
+          !gridvarstring(13) = "QNICE"
+          gridvarstring(13) = "H_DIABATIC"
+          !gridvarstring(15) = "REFL_10CM"
+          gridvarstring(14) = "MU"
+          gridvarstring(11) = "QCLOUD"
+          gridvarstring(8) = "QRAIN"
+          gridvarstring(9) = "QSNOW"
+          gridvarstring(7) = "QGRAUP"
+          gridvarstring(10) = "QICE"
+          nvarhumid = 4
+
+       else if (nvars .eq. 15) then
+
+          if (nproc .eq. 0) then
+
+             ! Print message to user
+
+             write(6,*) 'Updating U, V, T, QVAPOR, W, PH, QRAIN, QCLOUD, QNRAIN, QSNOW, QGRAUP, QICE, '
+             write(6,*) '                  QNICE, H_DIABATIC and MU for WRF-ARW...'
+
+          endif ! if (nproc .eq. 0) then
+
+          ! *USER*: The following variables will be updated using the
+          ! innovations and increments prduced by the data
+          ! assimilation
+
+          gridvarstring(1) = "U"
+          gridvarstring(2) = "V"
+          gridvarstring(3) = "T"
+          gridvarstring(4) = "QVAPOR"
+          gridvarstring(5) = "W"
+          gridvarstring(6) = "PH"
+          gridvarstring(12) = "QNRAIN"
+          gridvarstring(13) = "QNICE"
+          gridvarstring(14) = "H_DIABATIC"
+          gridvarstring(15) = "REFL_10CM"
+          !gridvarstring(16) = "T2"
+          !gridvarstring(17) = "Q2"
+          !gridvarstring(18) = "U10"
+          !gridvarstring(19) = "V10"
+          gridvarstring(16) = "MU"
+          gridvarstring(11) = "QCLOUD"
+          gridvarstring(8) = "QRAIN"
+          gridvarstring(9) = "QSNOW"
+          gridvarstring(7) = "QGRAUP"
+          gridvarstring(10) = "QICE"
+          nvarhumid = 4
+
+       else if (nvars .eq. 22) then
+
+          if (nproc .eq. 0) then
+
+             ! Print message to user
+
+             write(6,*) 'Updating NSSL 2M (18) U, V, T, QVAPOR, W, PH, QRAIN, QCLOUD, &
+                QNRAIN, QSNOW, QGRAUP, QICE, QNICE, H_DIABATIC and MU for WRF-ARW...'
+
+          endif ! if (nproc .eq. 0) then
+
+          ! *USER*: The following variables will be updated using the
+          ! innovations and increments produced by the data
+          ! assimilation
+
+          gridvarstring(1) = "U"
+          gridvarstring(2) = "V"
+          gridvarstring(3) = "T"
+          gridvarstring(4) = "QVAPOR"
+          gridvarstring(5) = "W"
+          gridvarstring(6) = "PH"
+          gridvarstring(7) = "H_DIABATIC"
+          gridvarstring(8) = "REFL_10CM"
+          gridvarstring(23) = "MU"
+          gridvarstring(9) = "QCLOUD"
+          gridvarstring(10) = "QRAIN"
+          gridvarstring(11) = "QSNOW"
+          gridvarstring(12) = "QGRAUP"
+          gridvarstring(13) = "QICE"
+          gridvarstring(14) = "QHAIL"
+          gridvarstring(15) = "QNRAIN"
+          gridvarstring(16) = "QNICE"
+          gridvarstring(17) = "QNDROP"
+          gridvarstring(18) = "QNSNOW"
+          gridvarstring(19) = "QNGRAUPEL"
+          gridvarstring(20) = "QNHAIL"
+          gridvarstring(21) = "QVGRAUPEL"
+          gridvarstring(22) = "QVHAIL"
           nvarhumid = 4
 
        else 

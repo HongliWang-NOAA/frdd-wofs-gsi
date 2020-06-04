@@ -396,9 +396,7 @@ done
  cp $bufrtable ./prepobs_prep.bufrtable
 
 # for satellite bias correction
-# Users may need to modify these to use their own bias corrections
-cp ${FIX_ROOT}/gdas1.t12z.abias ./satbias_in
-cp ${FIX_ROOT}/gdas1.t12z.abias_pc ./satbias_pc
+cp ${FIX_ROOT}/rap_satbias_in ./satbias_in
 
 #
 ##################################################################################

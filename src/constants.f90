@@ -53,7 +53,7 @@ module constants
   public :: init_constants
   public :: gps_constants
 ! set passed variables to public
-  public :: one,two,half,zero,deg2rad,pi,three,quarter,one_tenth
+  public :: one,two,half,zero,deg2rad,pi,three,quarter,one_tenth, izero
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
   public :: rd,rv,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
@@ -103,6 +103,7 @@ module constants
 ! Numeric constants
 
   integer(i_long),parameter::  zero_ilong = 0_i_long
+  integer(i_kind),parameter::  izero  = 0_i_kind
 
   real(r_single),parameter::  zero_single= 0.0_r_single
 

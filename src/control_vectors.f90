@@ -27,6 +27,9 @@ module control_vectors
 !   2010-05-28  todling  - remove all nrf2/3_VAR-specific "pointers"
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2013-05-20  zhu      - add aircraft temperature bias correction coefficients as control variables
+!   2016-02-15  Johnson, Y. Wang, X. Wang - add variables to control reading
+!                                           state variables for radar DA. POC:
+!                                           xuguang.wang@ou.edu
 !
 ! subroutines included:
 !   sub init_anacv   
@@ -123,6 +126,12 @@ public an_amp0     ! multiplying factors on reference background error variances
 public nrf2_loc,nrf3_loc,nmotl_loc   ! what are these for??
 public ntracer
 
+public l_w_exist ! w will be used in the control variables ,only for
+                      ! wrf_mass_region =.true.
+public l_model_dbz ! dbz will be used in the control variables ,only for
+                      ! wrf_mass_region =.true.
+public l_init_dbz
+
 type control_vector
    integer(i_kind) :: lencv
    real(r_kind), pointer :: values(:) => NULL()
@@ -163,7 +172,13 @@ real(r_kind)    ,allocatable,dimension(:) :: as2d
 real(r_kind)    ,allocatable,dimension(:) :: atsfc_sdv
 real(r_kind)    ,allocatable,dimension(:) :: an_amp0
 
+integer(i_kind) mx_clouds
+parameter(mx_clouds=10)
+character(len=10) cloud_var(mx_clouds)
 logical :: llinit = .false.
+logical l_w_exist !
+logical l_model_dbz !
+logical l_init_dbz
 
 ! ----------------------------------------------------------------------
 INTERFACE ASSIGNMENT (=)
@@ -289,6 +304,7 @@ character(len=*),parameter::myname_=myname//'*init_anacv'
 integer(i_kind) luin,ii,ntot
 integer(i_kind) ilev, itracer
 real(r_kind) aas,amp
+integer(i_kind) icloud
 
 ! load file
 luin=get_lun()
@@ -372,12 +388,48 @@ allocate(evars2d(nc2d),evars3d(nc3d))
 evars2d=cvars2d
 evars3d=cvars3d
 
+!Default W and DZ in model fields TAJ
+l_w_exist=.true.
+l_model_dbz=.true.
+l_init_dbz=.true.
+
 if (mype==0) then
     write(6,*) myname_,': 2D-CONTROL VARIABLES ARE ', cvars2d
     write(6,*) myname_,': 3D-CONTROL VARIABLES ARE ', cvars3d
     write(6,*) myname_,': MOTLEY CONTROL VARIABLES ', cvarsmd
     write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
 end if
+
+cloud_var="none"
+icloud=0
+do ii=1,nc3d
+if(mype.eq.0 ) write(6,*)"thinkdeb anacv cvars3d is ",cvars3d(ii)
+if(trim(cvars3d(ii)).eq.'w'.or.trim(cvars3d(ii)).eq.'W') l_w_exist=.true.
+if(trim(cvars3d(ii)).eq.'dbz'.or.trim(cvars3d(ii)).eq.'DBZ') then
+ l_model_dbz=.true.
+ print*, "USE EXTERNAL DBZ METHOD"
+ endif
+if(trim(cvars3d(ii)).eq.'qr'.or.trim(cvars3d(ii)).eq.'QR') then
+icloud=icloud+1
+cloud_var(icloud)="qr"
+ endif
+if(trim(cvars3d(ii)).eq.'cw'.or.trim(cvars3d(ii)).eq.'CW') then
+icloud=icloud+1
+cloud_var(icloud)="cw"
+ endif
+if(trim(cvars3d(ii)).eq.'qs'.or.trim(cvars3d(ii)).eq.'QS') then
+icloud=icloud+1
+cloud_var(icloud)="qs"
+ endif
+if(trim(cvars3d(ii)).eq.'qi'.or.trim(cvars3d(ii)).eq.'QI') then
+icloud=icloud+1
+cloud_var(icloud)="qi"
+ endif
+if(trim(cvars3d(ii)).eq.'qg'.or.trim(cvars3d(ii)).eq.'QG') then
+icloud=icloud+1
+cloud_var(icloud)="qg"
+ endif
+enddo ! ii
 
 end subroutine init_anacv
 subroutine final_anacv

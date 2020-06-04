@@ -157,6 +157,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-12-13  pondeca - add Tyndall & Horel QC for mesonet winds (WAF 2013, Vol. 8, pg. 285) to GSI's 2dvar option
 !   2017-03-31  Hu      -  addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
+!   2017-01-04 Thomes Jones - Add oklahoma mesonet option 
 !
 !
 ! REMARKS:
@@ -475,6 +476,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      z_height = .false.
      if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
      if ((itype==261) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
+     if (itype==299) z_height = .true.   ! OK Mesonet TAJ
 
 
 !    Process observations reported with height differently than those

@@ -390,6 +390,9 @@ do ii=1,nmguess
    endif
 enddo
 
+!print*, '2D VAR:', ng2d
+!print*, '3D VAR:', ng3d
+
 if(ng3d > 0)then
    allocate(mguess3d(ng3d), &
             metsty3d(ng3d), &
@@ -753,6 +756,7 @@ end subroutine final_
   else
      call die(myname_,'label unavailable :'//trim(desc),99)
   endif
+  
   return
   end subroutine get_int0d_
 !EOC
@@ -823,9 +827,11 @@ end subroutine final_
      labfound=.true.
      ii=0
      do i=1,ng3d
+        print*, 'I4 ',i4crtm3d(i), i
         if(i4crtm3d(i)>=10.and.i4crtm3d(i)<20) then
            ii=ii+1
-           ivar(ii)=levels3d(i) 
+           ivar(ii)=levels3d(i)
+           print*, 'CLOUD ivar', ivar(ii) 
         endif
      enddo
      if(ii>0) istatus=0

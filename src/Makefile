@@ -458,6 +458,8 @@ clean:
         m_qNode.F90 \
         m_radNode.F90 \
         m_rwNode.F90 \
+        m_dbzNode.F90 \
+        m_cwpNode.F90 \ 
         m_spdNode.F90 \
         m_srwNode.F90 \
         m_sstNode.F90 \
@@ -636,17 +638,20 @@ clean:
 	read_airs.f90 \
 	read_amsr2.f90 \
 	read_amsre.f90 \
+	read_amv.f90 \
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_atms.f90 \
 	read_bufrtovs.f90 \
 	read_co.f90 \
+        read_cwp.f90 \
 	read_cris.f90 \
 	read_diag.f90 \
         read_fl_hdob.f90 \
 	read_gmi.f90 \
-	read_goesimg.f90 \
+	read_goesimg_netcdf.f90 \
+        read_goesabi_netcdf.f90 \
 	read_ahi.f90 \
 	read_goesimgr_skycover.f90 \
 	read_goesndr.f90 \
@@ -662,7 +667,8 @@ clean:
 	read_pblh.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
-	read_radar.f90 \
+        read_dbz.f90 \
+        read_radar_wind_netcdf.f90 \
 	read_saphir.f90 \
 	read_satwnd.f90 \
 	read_satmar.f90 \
@@ -675,6 +681,9 @@ clean:
 	read_tcps.f90 \
 	setupbend.f90 \
 	setupco.f90 \
+        setupcwp.f90 \
+        setupdbz.f90 \
+        setupdbz_lib.f90 \
 	setupdw.f90 \
 	setupgust.f90 \
 	setuphowv.f90 \

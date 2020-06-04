@@ -89,6 +89,7 @@ contains
     use native_endianness, only: byte_swap
     use mpeu_util, only: die
     use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
+    use control_vectors, only : l_w_exist
   
     implicit none
   
@@ -118,7 +119,7 @@ contains
     integer(i_kind) ifld,im,jm,lm,num_mass_fields
     integer(i_kind) num_loc_groups,num_j_groups
     integer(i_kind) i,it,j,k
-    integer(i_kind) i_mu,i_t,i_q,i_u,i_v
+    integer(i_kind) i_mu,i_t,i_q,i_u,i_v, i_w
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt
     integer(i_kind) i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois,ksize
@@ -136,7 +137,7 @@ contains
     integer(i_long),allocatable:: jbuf(:,:,:)
     real(r_single),allocatable::mub(:,:), landmask(:,:),snow(:,:),seaice(:,:)
     integer(i_kind) kdim_mub,i_snowT_check
-    integer(i_kind) kt,kq,ku,kv
+    integer(i_kind) kt,kq,ku,kv,kw
     integer(i_kind) mfcst
     integer(i_long) iyear,imonth,iday,ihour,iminute,isecond,dummy3(3)
     real(r_single) pt_regional_single
@@ -155,6 +156,7 @@ contains
     real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_u (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_v (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_w (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qc(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qi(:,:,:)=>NULL()
@@ -171,6 +173,8 @@ contains
   
   ! Inquire about cloud guess fields
     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+    print*, 'N_clouds again ', n_actual_clouds
+
     if (n_actual_clouds>0) then
   !    get pointer to relevant instance of cloud-related backgroud
        ier=0
@@ -196,6 +200,7 @@ contains
     num_mass_fields=4*lm+4
     if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=4*lm+4+9*lm
     if(l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+2*nsig_soil+2
+    if(l_w_exist) num_mass_fields = num_mass_fields +lm+1
     if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+9*lm+2*nsig_soil+2
     allocate(offset(num_mass_fields))
     allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
@@ -318,7 +323,25 @@ contains
        if(mype == 0.and.k==1) write(6,*)' v i,igtype,offset,kdim(i),kord(i) = ', &
                                                               i,igtype(i),offset(i),kdim(i),kord(i)
     end do
-  
+ 
+    if(l_w_exist) then
+      i_w=i+1 
+      read(lendian_in) n_position,memoryorder
+      do k=1,lm
+       i=i+1                                                       ! w(k)
+       if(trim(memoryorder)=='XZY') then
+          iadd=0
+          kord(i)=lm
+       else
+          iadd=(k-1)*im*(jm+1)*4
+          kord(i)=1
+       end if
+       offset(i)=n_position+iadd ; length(i)=im*(jm+1) ; igtype(i)=3 ; kdim(i)=lm
+       if(mype == 0.and.k==1) write(6,*)' v i,igtype,offset,kdim(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kdim(i),kord(i)
+     end do
+    endif
+
     read(lendian_in) n_position                                         ! landmask
     allocate(landmask(im,jm))
     call mpi_file_iread_at(mfcst,n_position,landmask,im*jm,mpi_real4,request_ldmk,ierror)
@@ -597,6 +620,7 @@ contains
     kq=i_q-1
     ku=i_u-1
     kv=i_v-1
+    if(l_w_exist)  kw=i_w-1
     q_integral=one
     q_integralc4h=zero_single
   ! for hydrometeors
@@ -630,6 +654,9 @@ contains
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u , istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v , istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' , ges_q , istatus );ier=ier+istatus
+    if(l_w_exist)then
+      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w' , ges_w , istatus );ier=ier+istatus
+     endif
     if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
         write(6,*)'wrwrfmassa_binary: getpointer failed, cannot retrieve ps,u,v,q'
         call stop2(999)
@@ -641,6 +668,7 @@ contains
        kq=kq+1
        ku=ku+1
        kv=kv+1
+       if(l_w_exist) kw=kw+1
   ! for hydrometeors
        if(l_cloud_analysis .and. n_actual_clouds>0) then
           kqc=kqc+1
@@ -659,8 +687,10 @@ contains
              jp1=j+1
              all_loc(j,i,ku)=ges_u(jp1,ip1,k)
              all_loc(j,i,kv)=ges_v(jp1,ip1,k)
-  
-  
+             if(l_w_exist)then
+                 all_loc(j,i,kw)=ges_w(jp1,ip1,k)
+             endif
+
   !          Convert sensible temperature to potential temperature
              work_prsl  = one_tenth*(aeta1_ll(k)*(r10*ges_ps(jp1,ip1)-pt_ll)+aeta2_ll(k)+pt_ll)
              work_prslk = (work_prsl/r100)**rd_over_cp_mass
@@ -866,7 +896,26 @@ contains
                           jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
        deallocate(jbuf)
     end if
-  
+ 
+    if(l_w_exist) then    !read w
+    if(kord(i_w)/=1) then
+       jend2=jend
+       jend2(npe-1)=jend2(npe-1)+1
+       allocate(jbuf(im,lm,jbegin(mype):jend2(mype)))
+       this_offset=offset(i_w)+(jbegin(mype)-1)*4*im*lm
+       this_length=(jend2(mype)-jbegin(mype)+1)*im*lm
+       call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+       if(byte_swap) then
+          num_swap=this_length
+          call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+       end if
+       call read_wrf%transfer_jbuf2ibuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
+                          jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_w,i_w+lm-1)
+       deallocate(jbuf)
+    end if 
+
+    endif
+
     if(l_gsd_soilTQ_nudge) then
        lm=nsig_soil
   !                                    read smois
@@ -1176,7 +1225,27 @@ contains
        call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
        deallocate(jbuf)
     end if
-  
+ 
+   if(l_w_exist) then   !write W
+    if(kord(i_w)/=1) then
+       jend2=jend
+       jend2(npe-1)=jend2(npe-1)+1
+       allocate(jbuf(im,lm,jbegin(mype):jend2(mype)))
+       call this%transfer_ibuf2jbuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
+                          jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_w,i_w+lm-1)
+       this_offset=offset(i_w)+(jbegin(mype)-1)*4*im*lm
+       this_length=(jend2(mype)-jbegin(mype)+1)*im*lm
+       if(byte_swap) then
+          num_swap=this_length
+          call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+       end if
+       call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+       deallocate(jbuf)
+    end if
+
+
+   endif
+ 
     if(l_gsd_soilTQ_nudge) then
        lm=nsig_soil
   !                                    write smois
@@ -1423,7 +1492,8 @@ contains
     use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
     use gridmod, only: ijn,itotsub,lat1,lon1
     use kinds, only: r_single,i_kind
-    implicit none
+    use control_vectors, only : l_w_exist 
+   implicit none
   
     class(wrwrfmassa_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
@@ -1820,7 +1890,9 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use gsi_chemguess_mod, only: GSI_ChemGuess_Bundle, gsi_chemguess_get
     use mpeu_util, only: die
-    implicit none
+    use control_vectors, only : l_w_exist 
+
+   implicit none
   
   ! Declare passed variables
     class(wrwrfmassa_class), intent(inout) :: this 
@@ -1837,7 +1909,7 @@ contains
     real(r_single),allocatable::strp(:)
     real(r_single),allocatable::landmask(:),snow(:),seaice(:)
     character(6) filename
-    integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
+    integer(i_kind) i,j,k,kt,kq,ku,kv,kw,it,i_psfc,i_t,i_q,i_u,i_v,i_w
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt
     integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
@@ -1864,6 +1936,7 @@ contains
     real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_u (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_v (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_w (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qc(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qi(:,:,:)=>NULL()
@@ -1950,7 +2023,13 @@ contains
     i_q=i_t+lm
     i_u=i_q+lm
     i_v=i_u+lm
-    i_sst=i_v+lm
+    if(l_w_exist) then
+     i_w=i_v+lm
+     i_sst=i_w+lm+1
+    else
+     i_sst=i_v+lm
+   endif
+    !i_sst=i_v+lm
     if(i_use_2mt4b > 0) then
        i_th2=i_sst+1
     else
@@ -2045,6 +2124,9 @@ contains
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps', ges_ps, istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u , istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v , istatus );ier=ier+istatus
+    if(l_w_exist) then
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w' , ges_w , istatus );ier=ier+istatus
+    endif
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' , ges_q , istatus );ier=ier+istatus
     if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
         write(6,*)'wrwrfmassa_binary: getpointer failed, cannot retrieve ps,u,v,q'
@@ -2058,6 +2140,7 @@ contains
     kq=i_q-1
     ku=i_u-1
     kv=i_v-1
+    if(l_w_exist) kw=i_w-1
   ! for hydrometeors
     if(l_cloud_analysis .or. n_actual_clouds>0) then
        kqc=i_qc-1
@@ -2116,6 +2199,7 @@ contains
        kq=kq+1
        ku=ku+1
        kv=kv+1
+       if(l_w_exist) kw=kw+1
   ! for hydrometeors
        if(l_cloud_analysis .and. n_actual_clouds>0) then
           kqc=kqc+1
@@ -2311,7 +2395,25 @@ contains
           write(lendian_out)temp1v
        end if
     end do
-    
+   
+   if(l_w_exist) then
+    kw=i_w-1
+    do k=1,nsig
+       kw=kw+1
+       if(mype == 0) read(lendian_in)temp1
+       call strip(all_loc(:,:,kw),strp)
+       call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+       if(mype == 0) then
+          call fill_mass_grid2t(temp1,im,jm,tempb,2)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(lendian_out)temp1
+       end if
+    end do
+   endif
   ! Load updated skin temperature array if writing out to analysis file
     if (update_regsfc) then
        do i=1,lon2

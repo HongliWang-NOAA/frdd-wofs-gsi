@@ -122,6 +122,10 @@ module obsmod
 !   2016-07-26  guo      - moved away most cldch_ob_type contents to a new module, m_cldchNode
 !   2016-08-20  guo      - moved (stpcnt,ll_jo,ib_jo) to stpjo.f90.
 !   2016-09-19  guo      - moved function dfile_format() to m_extOzone.F90
+!   2016-02-15 Johnson, Y. Wang, X. Wang - add dbz type for reflectivity DA POC: xuguang.wang@ou.edu
+!   2017-01-01 Thomas Jones - Add cloud water path
+!   2017-11-15 Junjun Hu - Added dewpoint
+!
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -417,6 +421,38 @@ module obsmod
   public :: use_limit,lrun_subdirs
   public :: l_foreaft_thin,luse_obsdiag
 
+! RADAR STUFF
+  public :: ntilt_radarfiles
+  public :: i_dbz_ob_type
+  public :: irregular_radar_obs
+  public :: use_sim_obs
+  public :: vr_dealisingopt, if_vterminal, if_cv_w, if_cv_dbz
+  public :: make_sim_obs
+  public :: whichradar
+
+  public :: doradaroneob,oneoblat,oneoblon
+  public :: oneobddiff,oneobvalue,oneobheight,oneobradid
+  public :: logspace,qc_logspace,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr
+  public :: radar_no_thinning
+  public :: mintiltvr,maxtiltvr,minobrangevr,maxobrangevr
+  public :: mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz
+  public :: debugmode
+  public :: missing_to_nopcp
+  public :: iout_dbz, mype_dbz
+
+!CWP STUF (TAJ)
+  public :: i_cwp_ob_type !, i_lwp_ob_type, i_iwp_ob_type
+  public :: iout_cwp, mype_cwp
+
+! DEWPOINT (Junjun Hu JJH)
+  public :: i_td_ob_type
+  public :: iout_td, mype_td
+  public :: LH_err
+
+! OTHER STUFF
+  public :: decreasemesonetoberr,mesonettoberr,mesonetuvoberr,doublemomentflag
+  public :: innerverifonly,innerdlon1,innerdlon2,innerdlat1,innerdlat2
+
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
   public :: nobs_sub
@@ -438,7 +474,9 @@ module obsmod
   real(r_kind), parameter:: bmiss = 1.0e9_r_kind
 #endif
 
+  logical,parameter:: LH_err  = .true. ! this logical parameter controls which TD error to use, Lin and Hubbard (2004) moisture error model or NCEP error,.ture using LH method and false using NCEP error, added by JJH 2017.11.30
   logical luse_obsdiag
+
 ! Declare types
 
   integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
@@ -477,8 +515,11 @@ module obsmod
   integer(i_kind),parameter:: i_cldch_ob_type=34  ! cldch_ob_type
   integer(i_kind),parameter:: i_uwnd10m_ob_type=35! uwnd10m_ob_type
   integer(i_kind),parameter:: i_vwnd10m_ob_type=36! vwnd10m_ob_type
+  integer(i_kind),parameter:: i_dbz_ob_type=37    ! dbz_ob_type  
+  integer(i_kind),parameter:: i_cwp_ob_type=38    ! CWP_ob_type
+  integer(i_kind),parameter:: i_td_ob_type=39     ! DEWPOINT_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 36      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 39      ! number of observation types ! 38-39 JJH added td
 
 ! Structure for diagnostics
 
@@ -518,22 +559,23 @@ module obsmod
   real(r_kind) perturb_fact,time_window_max,time_offset
   real(r_kind),dimension(50):: dmesh
 
+  integer(i_kind) ntilt_radarfiles
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
   integer(i_kind) nlco,use_limit
-  integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
-                  iout_oz,iout_ps,iout_pw,iout_rw
+  integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, iout_td, &
+                  iout_oz,iout_ps,iout_pw,iout_rw, iout_dbz, iout_cwp
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
   integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) iout_uwnd10m,iout_vwnd10m
-  integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
+  integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, mype_td,  &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
-                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas
+                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas,mype_dbz, mype_cwp
   integer(i_kind) mype_cldch
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind) iout_pm2_5, mype_pm2_5
@@ -556,6 +598,31 @@ module obsmod
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
   character(len=20) :: cobstype(nobs_type)
+
+  logical ::  irregular_radar_obs,doradaroneob
+  logical ::  use_sim_obs
+  logical :: vr_dealisingopt, if_vterminal, if_cv_w, if_cv_dbz
+  logical ::  make_sim_obs
+  character(4) :: whichradar,oneobradid
+  real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
+  logical :: logspace
+  logical :: qc_logspace
+  logical :: radar_no_thinning
+  logical :: ens_hx_dbz_cut
+  real(r_kind) ::static_gsi_nopcp_dbz
+  real(r_kind) ::rmesh_dbz,zmesh_dbz
+  real(r_kind) ::rmesh_vr,zmesh_vr
+  logical :: debugmode
+
+  real(r_kind) :: minobrangevr,maxobrangevr,mintiltvr,maxtiltvr
+  real(r_kind) :: minobrangedbz,maxobrangedbz,mintiltdbz,maxtiltdbz
+  logical         :: missing_to_nopcp
+
+  logical :: decreasemesonetoberr,doublemomentflag
+  real :: mesonettoberr,mesonetuvoberr
+  logical :: innerverifonly
+  integer(i_kind) :: innerdlon1,innerdlon2,innerdlat1,innerdlat2
+
 
   logical, save :: obs_instr_initialized_=.false.
 
@@ -607,6 +674,10 @@ contains
 !   2015-07-10  pondeca - add cldch
 !   2015-10-27  todling - default to luse_obsdiag is true now
 !   2016-03-07  pondeca - add uwnd10m,vwnd10m
+!   2016-02-14  Johnson, Wang - add variables (rmesh_dbz etc.) for reflectivity DA,
+!                               and if_vterminal, if_cv_w, if_cv_dbz
+!                               xuguang.wang@ou.edu
+!   2016-09/25 Thomas Jones - Add CWP variables 
 !
 !   input argument list:
 !
@@ -620,6 +691,55 @@ contains
     implicit none
 
     integer(i_kind) i
+
+
+    ntilt_radarfiles=1
+    irregular_radar_obs=.false.
+    irregular_radar_obs=.false.
+    use_sim_obs=.false.
+    vr_dealisingopt=.true.
+    if_vterminal=.true.
+    if_cv_w=.true.
+    if_cv_dbz=.true.
+    make_sim_obs=.false.
+    whichradar="KKKK"
+
+    oneobradid="KKKK"
+    doradaroneob=.false.
+    oneoblat=-999
+    oneoblon=-999
+    oneobddiff=-999
+    oneobvalue=-999
+    oneobheight=-999
+    logspace=.true.
+    qc_logspace=.true.
+    radar_no_thinning=.true. !true = don't thin radar data (do this in pre-processing)
+    ens_hx_dbz_cut=.false.
+    static_gsi_nopcp_dbz=0.0
+    rmesh_dbz=2   !default
+    rmesh_vr=2   !default
+    zmesh_dbz=500.0   !default
+    zmesh_vr=500.0   !default
+    minobrangedbz=10000.0
+    maxobrangedbz=200000.0
+    debugmode=.false.
+
+    mintiltdbz=0.0
+    maxtiltdbz=20.0
+    minobrangevr=10000.0
+    maxobrangevr=200000.0
+    mintiltvr=0.0
+    maxtiltvr=20.0
+    missing_to_nopcp=.false.
+    decreasemesonetoberr=.false.
+    mesonettoberr=-999.9
+    mesonetuvoberr=-999.9
+    innerverifonly=.false.
+    innerdlon1=-1
+    innerdlon2=-1
+    innerdlat1=-1
+    innerdlat2=-1
+    doublemomentflag=.false.
 
 
 !   Set logical flag
@@ -643,6 +763,7 @@ contains
     sfcmodel  = .false.     ! .false. = do not use boundary layer model 
     dtbduv_on = .true.      ! .true. = use microwave dTb/duv in inner loop
     offtime_data = .false.  ! .false. = code fails if data files contain ref time
+
                             !            different from analysis time
 ! moved to create_obsmod_var since l4dvar since before namelist is read
 !   if (l4dvar) then
@@ -688,6 +809,9 @@ contains
     iout_cldch=232 ! cloud ceiling height
     iout_uwnd10m=233  ! 10-m uwnd
     iout_vwnd10m=234  ! 10-m vwnd
+    iout_dbz=235   ! radar reflectivity  
+    iout_cwp=236   ! CWP
+    iout_td=237   ! Dewpoint
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -718,7 +842,9 @@ contains
     mype_cldch=max(0,npe-27) ! cloud ceiling height
     mype_uwnd10m= max(0,npe-28)! uwnd10m
     mype_vwnd10m= max(0,npe-29)! vwnd10m
-
+    mype_dbz= max(0,npe-30)  ! radar refectivity 
+    mype_cwp= max(0,npe-31)  ! CWP    
+    mype_td= max(0,npe-32)  ! Dewpoint  !JJH 
 
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours
@@ -733,7 +859,6 @@ contains
     lunobs_obs = 2             ! unit to which to write/read information
                                ! related to brightness temperature and 
                                ! precipitation rate observations
-
     grids_dim= 80              ! grid points for integration of GPS bend
 
     nprof_gps = 0
@@ -775,8 +900,9 @@ contains
     cobstype(i_cldch_ob_type)="cldch               " ! cldch_ob_type
     cobstype(i_uwnd10m_ob_type) ="uwnd10m          " ! uwnd10m_ob_type
     cobstype(i_vwnd10m_ob_type) ="vwnd10m          " ! vwnd10m_ob_type
-
-
+    cobstype(i_dbz_ob_type) ="dbz                  " ! dbz_ob_type
+    cobstype(i_cwp_ob_type) ="cwp                  " ! cwp_ob_type
+    cobstype(i_td_ob_type) ="td                    " ! td_ob_type JJH
 
     hilbert_curve=.false.
 
@@ -784,7 +910,7 @@ contains
     lread_obs_save   = .false.
     lread_obs_skip   = .false.
     lwrite_predterms = .false.
-    lwrite_peakwt    = .false.
+    lwrite_peakwt    = .true. ! TAJ
     lrun_subdirs     = .false.
     l_foreaft_thin   = .false.
     luse_obsdiag     = .false.
@@ -885,8 +1011,10 @@ contains
 
 
     if(luse_obsdiag)then
+      !print*, 'ALLOCATE:', nobs_type,nobs_bins
       ALLOCATE(obsdiags(nobs_type,nobs_bins))
     else
+      !print*, 'DONT ALL:', nobs_type,nobs_bins 
       ALLOCATE(obsdiags(0,0))
     endif
 
@@ -1241,8 +1369,8 @@ do ii=1,nrows
                       dsis(ii), & ! sensor/instrument/satellite identifier for info files
                       dval(ii), & ! 
                       dthin(ii),& ! thinning flag (1=thinning on; otherwise off)
-                      dsfcalc(ii) ! use orig bilinear FOV surface calculation (routine deter_sfc)
-
+                      dsfcalc(ii),& ! use orig bilinear FOV surface calculation (routine deter_sfc)
+                      time_window(ii) ! time step for each observation  SWAPAN MALLICK (replaces below for sat DA) -JJH uncommented
    ! The following is to sort out some historical naming conventions
    select case (dsis(ii)(1:4))
       case ('airs')
@@ -1257,7 +1385,7 @@ do ii=1,nrows
    if(dval(ii) > 0.0) dval_use = .true.
    ditype(ii)= ' '                    ! character string identifying group type of ob (see read_obs)
    ipoint(ii)= 0                      ! default pointer (values set in gsisub) _RT: This is never needed
-   time_window(ii) = time_window_max  ! default to maximum time window
+   !time_window(ii) = time_window_max  ! default to maximum time window  uncommented by JJH
    write(obsfile_all(ii),'(a,i4.4)') 'obs_input.', ii      ! name of scratch file to hold obs data
    
 enddo

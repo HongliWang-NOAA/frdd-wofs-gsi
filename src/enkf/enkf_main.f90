@@ -33,6 +33,8 @@ program enkf_main
 !   2009-02-23  Initial version.
 !   2011-06-03  Added the option for LETKF.
 !   2016-02-01  Initialize mpi communicator for IO tasks (1st nanals tasks).
+!   2016-09-25:  Added function to read text file containing localization
+!                information for each variable type: Thomas Jones (TAJ)
 !
 ! usage:
 !   input files:
@@ -66,23 +68,26 @@ program enkf_main
 !
 !$$$
 
- use kinds, only: r_kind,r_double,i_kind
+ use kinds, only: r_kind,r_double,i_kind,r_single !JJH
  ! reads namelist parameters.
  use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
-                    numiter, nanals, lupd_obspace_serial
+                    numiter, nanals, lupd_obspace_serial, prior_inf ! prior adaptive inflation -JJH
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
                       numproc, mpi_wtime
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, obfit_prior, obsprd_prior, &
-                    deltapredx, nobs_sat, obfit_post, obsprd_post, &
-                    obsmod_cleanup, biasprednorminv
+                 deltapredx, nobs_sat, obfit_post, obsprd_post, &
+                 obsmod_cleanup, biasprednorminv, stattype, ensmean_obnobc, &
+                 ob, nobstot, obtype, obloclat, obloclon, obpress, oberrvar,&
+                 oberrvar_orig, obtime
  ! innovation statistics.
  use innovstats, only: print_innovstats
  ! grid information
  use gridinfo, only: getgridinfo, gridinfo_cleanup, npts,lonsgrd,latsgrd
  ! model state vector 
- use statevec, only: read_ensemble, write_ensemble, statevec_cleanup
+ use statevec, only: read_ensemble, write_ensemble, statevec_cleanup, &
+                     read_prior_inf, write_prior_inf  !  prior adaptive inflation -JJH
  ! load balancing
  use loadbal, only: load_balance, loadbal_cleanup
  ! enkf update
@@ -100,6 +105,13 @@ program enkf_main
  implicit none
  integer(i_kind) j,n,nth
  real(r_double) t1,t2
+ logical readin_localobs
+
+ real(r_single) fail,failm ! added by JJH
+ fail=1.e31_r_single
+ failm=1.e30_r_single
+
+ readin_localobs = .true.
 
  ! initialize MPI.
  call mpi_initialize()
@@ -122,7 +134,10 @@ program enkf_main
 
  ! read horizontal grid information and pressure fields from
  ! 6-h forecast ensemble mean file.
+ t1 = mpi_wtime()
  call getgridinfo()
+ t2 = mpi_wtime()
+ if (nproc == 0) print *,'time in getgridinfo =',t2-t1,'on proc',nproc
 
  ! read obs, initial screening.
  t1 = mpi_wtime()
@@ -140,6 +155,12 @@ program enkf_main
  ! scales, set values for each ob.
  if (readin_localization) call read_locinfo()
 
+! READ IN OBSERVATION SPECIFIC LOCALIZATIONS (TAJ)
+ if (readin_localobs) then
+  call read_locinfo_obs()
+  if (nproc == 0) print*, 'LOCALIZATIONS SET AS A FUNCTION OF OBS TYPE'
+ end if
+
  ! do load balancing (partitioning of grid points, observations among
  ! processors)
  t1 = mpi_wtime()
@@ -153,6 +174,14 @@ program enkf_main
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in read_ensemble =',t2-t1,'on proc',nproc
 
+ ! if prior inflation, read inflation (mean and sd) info and distribute pieces to each task -JJH
+ if (prior_inf == 1) then
+     t1 = mpi_wtime()
+     call read_prior_inf()
+     t2 = mpi_wtime()
+     if (nproc == 0) print *,'time in read_prior_inf =',t2-t1,'on proc',nproc
+ endif
+
  t1 = mpi_wtime()
  ! state and bias correction coefficient update iteration.
  if(letkf_flag) then
@@ -164,6 +193,14 @@ program enkf_main
  end if
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in enkf_update =',t2-t1,'on proc',nproc
+
+ ! if prior inflation, write our the updated inflation (mean and sd) info -JJH
+ if (prior_inf == 1) then
+     t1 = mpi_wtime()
+     call write_prior_inf()
+     t2 = mpi_wtime()
+     if (nproc == 0) print *,'time in write_prior_inf =',t2-t1,'on proc',nproc
+ endif
 
  ! posterior inflation.
  t1 = mpi_wtime()
@@ -186,6 +223,20 @@ program enkf_main
        call radinfo_write()
     end if
  end if
+
+ ! WRITE SOME TEXT OUTPUT (TAJ)
+ if(nproc .eq. 0) then
+   open(unit=77,file="allobs_enkf")
+   do j=1,nobstot
+    if (abs(oberrvar(j)) .gt. 9000.0) then
+     oberrvar_orig(j) = -99.9    !NO OBSVAR MEANS IT IS CONSIDERED AN OUTLIER BY ENKF
+     oberrvar(j) = -99.9
+    endif
+    write(77,'(a6,i8,12f15.5)')obtype(j),stattype(j),ob(j),obfit_prior(j),obfit_post(j),obloclat(j),&
+          obloclon(j),obpress(j),oberrvar(j),oberrvar_orig(j),obsprd_prior(j),obsprd_post(j),ensmean_obnobc(j),obtime(j)
+   enddo
+ close(77)
+ endif
 
  ! free memory (radinfo memory freed in radinfo_write)
  ! and write out analysis ensemble.

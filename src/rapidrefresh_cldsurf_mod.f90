@@ -265,6 +265,8 @@ contains
       l_cloud_analysis = all(have_hmeteor)
     end if
 
+    l_cloud_analysis = .true.
+
     l_sfcobserror_ramp_t  = .false.  ! .true. = turn on GSD surface temperature observation error adjustment
     l_sfcobserror_ramp_q  = .false.  ! .true. = turn on GSD surface moisture observation error adjustment
     l_pbl_pseudo_surfobst  = .false.                  ! .true. = turn on PBL pseudo-obs T

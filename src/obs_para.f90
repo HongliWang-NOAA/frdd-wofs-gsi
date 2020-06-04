@@ -89,18 +89,22 @@ subroutine obs_para(ndata,mype)
 
 !
 ! Set number of obs on each pe for each data type
+!  print*, 'OPEN setup file', ndat
   open(lunout,file=obs_setup,form='unformatted')
   rewind lunout
   do is=1,ndat
+     !print*, 'TYPE, NUM: ', dtype(is), ndata(is,1) !JJH
 
      if(dtype(is) /= ' ' .and. ndata(is,1) > 0)then
-
+        
         ndatax_all=ndatax_all + ndata(is,1)
+
+        !print*,  ndatax_all, ndata(is,1), is, ii, dtype(is), nobs_sub(ii,is)
 
         if (dtype(is)=='lag') then    ! lagrangian data
            call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
                 nobs_s) 
-        nsat1(is)= nobs_sub(mm1,is)
+           nsat1(is)= nobs_sub(mm1,is)
         else 
            obproc:do ii=1,npe
              if(nobs_sub(ii,is) > 0)then
@@ -112,7 +116,7 @@ subroutine obs_para(ndata,mype)
            if(nobs_sub(mm1,is) > zero)then    ! classical observations
               call disobs(ndata(is,1),nobs_sub(mm1,is),mm1,lunout, &
                   obsfile_all(is),dtype(is))
-           end if
+            end if
         end if
         nsat1(is)= nobs_sub(mm1,is)
         if(mm1 == 1)then
@@ -154,6 +158,7 @@ subroutine obs_para(ndata,mype)
 
   end do
   close(lunout)
+  !print*, 'END OBS PARA'
 
 
 ! If there are no obs available, turn off moisture constraint.  
@@ -379,6 +384,87 @@ subroutine count_obs(ndata,nn_obs,lat_data,lon_data,obs_data,nobs_s)
   end do 
   return
 end subroutine count_obs
+
+subroutine count_obs2(ndata,nn_obs,lat_data,lon_data,obs_data,nobs_s)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    count_obs  counts number of observations on each subdomain
+!   prgmmr: derber                                    date: 2014-12-16
+!
+! abstract: count observations in each pe subdomain
+!
+! program history log:
+!   2014-12-16  derber
+!
+!   input argument list:
+!     ndata    - number of observations
+!     nn_obs   - number of an observation data for each ob 
+!     lat_data - location of lattitude
+!     lon_data - location of longitude
+!     obs_data - observation information array
+!
+!   output argument list:
+!     nobs_s   - number of observations on all subdomains
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
+  use mpimod, only: npe
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)               ,intent(in   ) :: ndata,lat_data,lon_data
+  integer(i_kind)               ,intent(in   ) :: nn_obs
+  integer(i_kind),dimension(npe),intent(inout) :: nobs_s
+  real(r_kind),dimension(nn_obs,ndata),intent(in) :: obs_data
+
+! Declare local variables
+  integer(i_kind) lon,lat,n,k
+  integer(i_kind),dimension(npe):: ibe,ibw,ibn,ibs
+
+! Read and write header
+
+  do k=1,npe
+
+!    ibw,ibe,ibs,ibn west,east,south and north boundaries of total region
+     ibw(k)=jstart(k)-1
+     ibe(k)=jstart(k)+jlon1(k)-1
+     ibs(k)=istart(k)-1
+     ibn(k)=istart(k)+ilat1(k)-1
+
+  end do
+
+
+  nobs_s=0
+
+! Loop over all observations.  Locate each observation with respect
+! to subdomains.
+  do n=1,ndata
+     lat=obs_data(lat_data,n)
+     lat=min(max(1,lat),nlat)
+
+     do k=1,npe
+        !if(lat>=ibs(k).and.lat<=ibn(k)) then
+        !   lon=obs_data(lon_data,n)
+        !   lon=min(max(0,lon),nlon)
+        !   if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
+        !      (lon == 0   .and. ibe(k) >=nlon) .or.  &
+        !      (lon == nlon    .and. ibw(k) <=1) .or. periodic_s(k)) then
+                 nobs_s(k)=nobs_s(k)+1
+                 print*, nobs_s(k)
+        !   end if
+        !end if
+     end do
+  end do
+  return
+end subroutine count_obs2
+
+
 
 ! ------------------------------------------------------------------------
 subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)

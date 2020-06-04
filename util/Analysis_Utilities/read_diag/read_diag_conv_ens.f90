@@ -53,7 +53,7 @@ PROGRAM read_diag_conv_ens
   open(11,file='namelist_ens.conv')
    read(11,iosetup)
   close(11)
-
+  
   iens=1
   write(infilename,'(a,i3.3)') trim(infilenamebase),iens
   write(*,*) trim(infilename)
@@ -824,7 +824,9 @@ subroutine read_diag_conv_count(iunitdiag,numobs_t,numobs_ps,numobs_uv,numobs_q,
      numobs_uv=0
      numobs_q=0
 
+     write(*,*) trim('hhhhhhhhhh'),iunitdiag
      read(iunitdiag, ERR=999) idate
+     write(*,*) trim('hhhhhhhhhh')
      write(*,*) 'process date: ',idate
 100  continue
      read(iunitdiag, ERR=999,end=110) var, nchar,nreal,ii,mype

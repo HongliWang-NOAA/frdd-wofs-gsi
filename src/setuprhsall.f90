@@ -194,11 +194,15 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupps
   external:: setuppw
   external:: setupq
+  external:: setuptd !JJH
+  external:: setupdlw !JJH
   external:: setuprad
   external:: setupref
   external:: setuprw
   external:: setupspd
   external:: setupsrw
+  external:: setupdbz
+  external:: setupcwp
   external:: setupsst
   external:: setupt
   external:: setuptcp
@@ -237,6 +241,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
        is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
        i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,i_wspd10m,i_td2m,&
+       i_dbz,i_cwp, i_td,i_okt, i_okq, i_okuv, i_okps, i_oktd,&
        i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,iobs,nprt,ii,jj
   integer(i_kind) it,ier,istatus
 
@@ -261,8 +266,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !******************************************************************************
 ! Initialize timer
   call timer_ini('setuprhsall')
-
-
 
 ! Initialize variables and constants.
   first = jiter == jiterstart   ! .true. on first outer iter
@@ -305,7 +308,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_cldch=25
   i_uwnd10m=26
   i_vwnd10m=27
-  i_ref =i_vwnd10m
+  i_dbz=28
+  i_cwp=29
+  i_td=30 ! JJH
+!  i_ref =i_vwnd10m
+  i_ref = i_td ! JJH
+!  i_ref = i_cwp ! COMMENTED BY JJH
 
   allocate(awork1(7*nsig+100,i_ref))
   if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
@@ -376,6 +384,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    endif
   endif
 
+
 ! Compute 2d subdomain pbl heights from the guess fields
    if (wrf_mass_regional) then
       call load_gsdpbl_hgt(mype)
@@ -411,7 +420,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      lunin=1
      open(lunin,file=obs_setup,form='unformatted')
      rewind lunin
- 
+
   
 !    If requested, create conventional diagnostic files
      if(conv_diagsave)then
@@ -465,6 +474,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 
 !    Loop over data types to process
+
      do is=1,ndat
         nobs=nsat1(is)
  
@@ -480,6 +490,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !          Set up for radiance data
            if(ditype(is) == 'rad')then
+
+             !print*, 'RAD OBS ', mype, nchanl,nreal,nobs
  
               call setuprad(lunin,&
                  mype,aivals,stats,nchanl,nreal,nobs,&
@@ -499,19 +511,23 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !          Set up conventional data
            else if(ditype(is) == 'conv')then
 !             Set up temperature data
-              if(obstype=='t')then
+              if(obstype=='t' .or. obstype=='okt'  .or. obstype=='aerit')then ! JJH added aerit
                  call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,is,conv_diagsave)
 
 !             Set up uv wind data
-              else if(obstype=='uv')then
+              else if(obstype=='uv'.or. obstype=='okuv')then
                  call setupw(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
+
+!             Set up Dopper Lidar(DL) Wind profile - JJH
+              else if(obstype=='dlw')then
+                 call setupdlw(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
 
 !             Set up wind speed data
               else if(obstype=='spd')then
                  call setupspd(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
 
 !             Set up surface pressure data
-              else if(obstype=='ps')then
+              else if(obstype=='ps'.or. obstype=='okps')then
                  call setupps(lunin,mype,bwork,awork(1,i_ps),nele,nobs,is,conv_diagsave)
  
 !             Set up tc-mslp data
@@ -519,8 +535,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs,is,conv_diagsave)
 
 !             Set up moisture data
-              else if(obstype=='q') then
+              else if(obstype=='q'.or. obstype=='okq'  .or. obstype=='aeriq') then ! JJH added aeriq
                  call setupq(lunin,mype,bwork,awork(1,i_q),nele,nobs,is,conv_diagsave)
+
+!             Set up dewpoint data (JJH)
+              else if(obstype=='td'.or. obstype=='oktd' .or. obstype=='aeritd') then
+                 call setuptd(lunin,mype,bwork,awork(1,i_td),nele,nobs,is,conv_diagsave)
 
 !             Set up lidar wind data
               else if(obstype=='dw')then
@@ -528,7 +548,17 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !             Set up radar wind data
               else if(obstype=='rw')then
+!                 print*, 'CALLING setuprw'
                  call setuprw(lunin,mype,bwork,awork(1,i_rw),nele,nobs,is,conv_diagsave)
+
+!             Set up radar reflectivity data
+              else if(obstype=='dbz')then
+!                 print*, 'CALLING setupdbz'
+                 call setupdbz(lunin,mype,bwork,awork(1,i_dbz),nele,nobs,is,conv_diagsave)
+
+!             Set up cloud water path data
+              else if(obstype=='cwp')then
+                 call setupcwp(lunin,mype,bwork,awork(1,i_cwp),nele,nobs,is,conv_diagsave)
 
 !             Set up total precipitable water (total column water) data
               else if(obstype=='pw')then
@@ -711,7 +741,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      call reset_predictors_var
   end if
 
+
 ! Collect satellite and precip. statistics
+!print*, mpi_rtype,mpi_sum,mype_rad, mpi_comm_world,ierror
   call mpi_reduce(aivals,aivals1,size(aivals1),mpi_rtype,mpi_sum,mype_rad, &
        mpi_comm_world,ierror)
 
@@ -725,12 +757,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
        mpi_comm_world,ierror)
 
 ! Collect conventional data statistics
-  
   call mpi_allreduce(bwork,bwork1,size(bwork1),mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
   
   call mpi_allreduce(awork,awork1,size(awork1),mpi_rtype,mpi_sum, &
        mpi_comm_world,ierror)
+
 
 ! Compute and print statistics for radiance, precipitation, and ozone data.
 ! These data types are NOT processed when running in 2dvar mode.  Hence
@@ -755,10 +787,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      endif
 
 !    Compute and print statistics for "conventional" data
+
      call statsconv(mype,&
-          i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
+          i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dbz,i_cwp, i_td, i_dw,i_gps,i_sst,i_tcp,i_lag, &
           i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
-          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork1,awork1,ndata)
+          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork1,awork1,ndata)  ! i_td added by JJH
+
+!i_okt, i_okq, i_okuv, i_okps, i_oktd
 
   endif  ! < .not. lobserver >
 

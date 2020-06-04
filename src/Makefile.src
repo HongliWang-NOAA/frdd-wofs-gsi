@@ -101,6 +101,7 @@
 	cvsection.o \
 	derivsmod.o \
 	deter_sfc_mod.o \
+        dewpoint_obs_err_mod.o \
 	dtast.o \
 	egrid2agrid_mod.o \
 	en_perts_io.o  \
@@ -237,6 +238,7 @@
 	m_distance.o \
 	m_dtime.o \
 	m_dwNode.o \
+        met_mod.o \
 	m_extOzone.o \
 	m_find.o   \
 	m_gpsNode.o \
@@ -269,6 +271,8 @@
 	m_rerank.o \
 	m_rhs.o	\
 	m_rwNode.o \
+        m_dbzNode.o \
+        m_cwpNode.o \
 	m_sortind.o \
 	m_spdNode.o \
 	m_srwNode.o \
@@ -277,6 +281,7 @@
 	m_tNode.o \
 	m_tcamtNode.o \
 	m_tcpNode.o \
+	m_tdNode.o \
 	m_td2mNode.o \
 	m_tick.o \
 	m_uniq.o  \
@@ -348,19 +353,22 @@
 	read_airs.o \
 	read_amsr2.o \
 	read_amsre.o \
-	read_anowbufr.o \
+	read_amv.o \
+        read_anowbufr.o \
 	read_atms.o \
 	read_avhrr.o \
 	read_avhrr_navy.o \
 	read_bufrtovs.o \
         read_co.o \
 	read_cris.o \
+        read_cwp.o \
 	read_diag.o \
 	read_files.o \
 	read_fl_hdob.o  \
 	read_gfs_ozone_for_regional.o \
 	read_gmi.o \
-	read_goesimg.o \
+        read_goesimg_netcdf.o \
+        read_goesabi_netcdf.o \
 	read_goesimgr_skycover.o \
 	read_goesndr.o \
 	read_gps.o \
@@ -376,10 +384,15 @@
 	read_nsstbufr.o \
         read_NASA_LaRC_cloud.o \
 	read_obs.o \
+        read_okmeso.o \
+        read_aeribufr.o \
+        read_dlbufr.o \
 	read_ozone.o \
 	read_pblh.o \
 	read_pcp.o \
 	read_prepbufr.o \
+        read_dbz.o \
+        read_radar_wind_netcdf.o \
 	read_radar.o \
 	read_radarref_mosaic.o  \
 	read_rapidscat.o \
@@ -403,6 +416,7 @@
         setupbend.o \
 	setupcldch.o \
         setupco.o \
+        setupcwp.o \
 	setupdw.o \
 	setupgust.o \
 	setuphowv.o \
@@ -424,9 +438,13 @@
 	setuprhsall.o \
 	setuprw.o \
 	setupspd.o \
+        setupdbz_lib.o \
 	setupsrw.o \
+        setupdbz.o \
 	setupsst.o \
 	setupt.o \
+	setuptd.o \
+	setupdlw.o \
 	setuptcamt.o \
 	setuptcp.o \
 	setuptd2m.o \

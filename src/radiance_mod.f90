@@ -135,10 +135,10 @@ contains
     integer(i_kind) indx_p25,indx_dust1,indx_dust2,ip25_av,idust1_av,idust2_av
 
 !   initialize variables
-    icloud_fwd=.false.
-    icloud_cv=.false.
-    iallsky=.false.
-    cw_cv=.false.
+    icloud_fwd=.true.
+    icloud_cv=.true.
+    iallsky=.true.
+    cw_cv=.true.
 
     n_actual_clouds=0
     n_clouds_fwd=0 
@@ -367,7 +367,10 @@ contains
        if (index(dtype(i),'hirs') /= 0)   rtype(i)='hirs'
        if (index(dtype(i),'avhrr') /= 0)  rtype(i)='avhrr'
        if (index(dtype(i),'seviri') /= 0) rtype(i)='seviri'
+       if (index(dtype(i),'abi') /= 0)    rtype(i)='abi'
 
+
+       ! ADD "abi" type: TAJ 
        if(rtype(i) == 'hirs'   .or. rtype(i) == 'sndr'     .or.  rtype(i) == 'seviri' .or. &
           rtype(i) == 'airs'   .or. rtype(i) == 'amsua'    .or.  rtype(i) == 'msu'    .or. & 
           rtype(i) == 'iasi'   .or. rtype(i) == 'amsub'    .or.  rtype(i) == 'mhs'    .or. &
@@ -375,7 +378,7 @@ contains
           rtype(i) == 'avhrr'  .or. rtype(i) == 'amsre'    .or.  rtype(i) == 'ssmis'  .or. & 
           rtype(i) == 'ssmi'   .or. rtype(i) == 'atms'     .or.  rtype(i) == 'cris'   .or. & 
           rtype(i) == 'amsr2'  .or. rtype(i) == 'gmi'      .or.  rtype(i) == 'saphir' .or. &
-          rtype(i) == 'modis_aod'  .or. rtype(i) == 'viirs_aod'    ) then
+          rtype(i) == 'modis_aod'  .or. rtype(i) == 'viirs_aod' .or. rtype(i) == 'abi'   ) then
           drtype(i)='rads'
        end if
     end do
@@ -421,8 +424,8 @@ contains
        rad_type_info(k)%ex_obserr=.false.
        rad_type_info(k)%ex_biascor=.false.
        rad_type_info(k)%cld_effect=.false.
-       rad_type_info(k)%lcloud_fwd=.false.
-       rad_type_info(k)%lallsky=.false.
+       rad_type_info(k)%lcloud_fwd=.true.
+       rad_type_info(k)%lallsky=.true.
        rad_type_info(k)%laerosol_fwd=.false.
        rad_type_info(k)%laerosol=.false.
 
