@@ -229,7 +229,7 @@ subroutine read_amv(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
   use_all=.true.
   var_list(1:11) = (/ "U        ", "V        ", "P        ", "T        ", "LON      ", &
                      "LAT      ", "QC       ", "LZN      ", "SZN      " , &
-                     "BID      ", "TIME      " /)
+                     "BID      ", "TIME     " /)
   var_num       = 11
   print *, "AMV file open ",trim(infile)
   length     = len_trim(infile)

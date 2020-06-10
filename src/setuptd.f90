@@ -917,7 +917,7 @@ subroutine setuptd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-     if(i_use_2mq4b) then
+     if(i_use_2mq4b.eq.1) then
 !    get q2m ...
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
