@@ -9,23 +9,18 @@ FLAGS= $(FFLAGS_DEFAULT)
 INCLD=  -I../../../dtc/include
 LIBS =  -L../../../src -lgsi
 
-all: read_diag_conv read_diag_rad read_diag_conv_ens
+SRC = $(wildcard *.f90)
+DEST = $(SRC:.f90=.exe)
 
-read_diag_conv_ens: read_diag_conv_ens.o
-	${FC} -o read_diag_conv_ens.exe ${FLAGS} read_diag_conv_ens.o ${LIBS} 
-	rm read_diag_conv_ens.o
+all: $(DEST)
 
-read_diag_conv: read_diag_conv.o
-	${FC} -o read_diag_conv.exe ${FLAGS} read_diag_conv.o ${LIBS} 
-	rm read_diag_conv.o
-
-read_diag_rad: read_diag_rad.o
-	${FC} -o read_diag_rad.exe ${FLAGS} read_diag_rad.o ${LIBS} 
-	rm read_diag_rad.o
+%.exe: %.f90 
+	${FC} -o $(<:.f90=.exe) ${FLAGS} ${INCLD} $< ${LIBS}
+	#rm $<.o
 
 .SUFFIXES : .f90  .o
 
-.f90.o :
+.f90.o : %.f90
 	${FC} ${FLAGS} ${INCLD} -c $<
 
 clean:
