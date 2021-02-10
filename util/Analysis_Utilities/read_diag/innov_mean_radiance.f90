@@ -384,7 +384,7 @@ PROGRAM innov_mean_radiance
           DO i = 1, ireal
             IF (i <= 10) THEN       ! must match
                IF (diagbuf(i) /= mdiagbuf(i)) THEN
-                 WRITE(*,'(1x,a,i0,a,i3.3,4a)')                            &
+                 WRITE(*,'(1x,a,i1,a,i3,a,E15.8,a,E15.8,a)')                            &
                    'ERROR: wrong diagbuf(',i,') for member: ',n,           &
                    ', expected: ', mdiagbuf(i), ', got: ',diagbuf(i),'.'
                  GOTO 9999
