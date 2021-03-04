@@ -440,23 +440,23 @@ subroutine setupcwp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   endif
 
   !CHECK IF WANT TO USE NIGHT-TIME DATA
-  if (usenight .eqv. .false. .and. (obkind .eq. 4 .or. obkind .eq. 5)) then
+  if ((usenight .eqv. .false.) .and. (obkind .eq. 4 .or. obkind .eq. 5)) then
     muse(i)= .false.
     !print*, 'USE NIGHT: ', usenight, obkind,  muse(i)
   endif  
-  if (usenight_clear .eqv. .false. .and. (obkind .eq. 3)) then
+  if ((usenight_clear .eqv. .false.) .and. (obkind .eq. 3)) then
     muse(i)= .false.
     !print*, 'USE NIGHT CLEAR: ', usenight_clear, obkind,  muse(i)
   endif
 
   !CHECK IF WANT TO USE LWP = 0 DATA (zeros over low-level clouds)
-  if (uselwp_clear .eqv. .false. .and. (obkind .eq. 6 .or. obkind .eq. 7 )) then
+  if ((uselwp_clear .eqv. .false.) .and. (obkind .eq. 6 .or. obkind .eq. 7 )) then
     muse(i)= .false.
   endif  
 
 
   !CHECK OF ***ONLY*** WANT TO USE ZEROS
-  if (use_cloud .eqv. .false. .and. data(icwpob,i) > 0.0 ) then
+  if ((use_cloud .eqv. .false.) .and. data(icwpob,i) > 0.0 ) then
     muse(i)= .false.
   endif
 
