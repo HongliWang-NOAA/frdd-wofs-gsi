@@ -174,7 +174,7 @@ subroutine read_goesabi_netcdf(val_img,ithin,rmesh,jsatid,gstime,&
   disterrmax=zero
   ntest=0
   dg2ew = r360*deg2rad
-
+  iscan=0
   ilon=3
   ilat=4
 
