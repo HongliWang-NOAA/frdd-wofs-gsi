@@ -654,10 +654,10 @@ subroutine setupcwp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(17,ii) = data(icwpob,i)       ! CWP observation
         rdiagbuf(18,ii) = ddiff                ! obs-ges (CWP)
         rdiagbuf(19,ii) = data(icwpob,i)-rCWP  ! obs-ges w/o bias correction (CWP) (future slot)
-        !rdiagbuf(20,ii)=data(iazm,i)*rad2deg   ! azimuth angle
-        !rdiagbuf(21,ii)=data(itilt,i)*rad2deg  ! tilt angle
-        !rdiagbuf(22,ii)=data(irange,i) ! the range in km
-        !rdiagbuf(23,ii)=data(idmiss2opt,i) ! the range in km
+        rdiagbuf(20,ii)=zero !data(iazm,i)*rad2deg   ! azimuth angle
+        rdiagbuf(21,ii)=zero !data(itilt,i)*rad2deg  ! tilt angle
+        rdiagbuf(22,ii)=zero !data(irange,i) ! the range in km
+        rdiagbuf(23,ii)=zero !data(idmiss2opt,i) ! the range in km
         
        !print*, ii, rdiagbuf(3,ii), rdiagbuf(4,ii), rdiagbuf(6,ii), rdiagbuf(11,ii),  rdiagbuf(18,ii), lobsdiagsave, err_input, err_final, lobsdiagsave
 
