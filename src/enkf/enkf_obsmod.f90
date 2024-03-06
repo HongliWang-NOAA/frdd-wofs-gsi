@@ -292,8 +292,11 @@ subroutine screenobs()
 use radinfo, only: iuse_rad,nuchan,nusis,jpch_rad
 real(r_single) fail,failm
 integer nn,nob
+
+real(r_single) insprd_tol
 fail=1.e31_r_single
 failm=1.e30_r_single
+infail=2.e31_r_single
 ! apply bias correction here just for debugging purposes.
 !call apply_biascorr()
 !==> pre-process obs, obs metadata.
@@ -329,6 +332,15 @@ do nob=1,nobstot
        oberrvar(nob)= fail
        if (obtype(nob)(1:3) == '  u') oberrvar(nob)=fail
        if (obtype(nob)(1:3) == '  v' .and. oberrvar(nob-1) >= failm) oberrvar(nob-1)=fail
+       cycle
+     end if
+      !IN-LIER THRESHOLD (TAJ)
+      insprd_tol = 0.25
+      if (abs(obfit_prior(nob)) < insprd_tol*sqrt(obsprd_prior(nob)+oberrvar(nob))) then
+         !print *,obtype(nob)(1:3),stattype(nob),ob(nob),ensmean_ob(nob),obsprd_prior(nob),oberrvar(nob)
+         if(nproc == 0)print *, 'reject ob due to obsprd_prior < insprd_tol ',&
+            obtype(nob)(1:3),obfit_prior(nob),sprd_tol*sqrt(obsprd_prior(nob)+oberrvar(nob))
+         oberrvar(nob)= infail
        cycle
      end if
   end if
