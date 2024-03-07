@@ -293,7 +293,7 @@ use radinfo, only: iuse_rad,nuchan,nusis,jpch_rad
 real(r_single) fail,failm
 integer nn,nob
 
-real(r_single) insprd_tol
+real(r_single) insprd_tol,infail
 fail=1.e31_r_single
 failm=1.e30_r_single
 infail=2.e31_r_single
