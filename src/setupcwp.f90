@@ -224,6 +224,12 @@ subroutine setupcwp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         satcbp=data(icbp,i)
         satctp=data(ictp,i) 
 
+       ! SET CBP / CTP TO TOTAL COLUMN IF CLEAR-SKY
+       if ( data(icwpob,i) == 0.0 ) then
+          satcbp = 100000.0  !hpa
+          satctp = 5000.0
+       endif
+       
 !    Link observation to appropriate observation bin
      if (nobs_bins>1) then
         ibin = NINT( dtime/hr_obsbin ) + 1
