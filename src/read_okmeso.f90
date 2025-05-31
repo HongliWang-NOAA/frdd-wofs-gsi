@@ -47,7 +47,7 @@ subroutine read_okmeso(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,prsl
   use convinfo, only: nconvtype,ctwind,cgross,icuse,ioctype
   use mpimod, only: npe  
 
- implicit none
+  implicit none
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
@@ -76,16 +76,19 @@ subroutine read_okmeso(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,prsl
   real(r_kind),parameter:: emerr= 0.2_r_kind
   
   character(80),parameter:: cspval= '88888888'
-  integer(i_kind),parameter:: maxobs=300
   integer(i_kind),parameter:: nmsgmax=100000 ! max message count
   
+  ! Data arrays
+  real(r_kind),allocatable,dimension(:) :: oktemp, okdewpt, okqvap, okuwind, okvwind, okpres, oklon, oklat, utime, okelev, okaltm
+  real(r_kind),allocatable,dimension(:,:) :: cdata_all
+  integer,allocatable,dimension(:) :: okstn  
   
   ! Declare local variables
   logical outside,convobs,inflate_error
   logical luse
   integer(i_kind)  maxmesoobs, nbad, usage, iunit, y4, m2, d2, h2, n2, s2, time, stnm, mx, iout
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next, tobs, ilon, ilat, relh, wdir
-  integer(i_kind) nreal, k, n, i, ikx, nr, idomsfc
+  integer(i_kind) nreal, k, n, i, ikx, nr, idomsfc, ios, offset
   real(r_kind) toe, qoe, woe, poe, tdoe
   real(r_kind) qtflg, tair, wspd, wvec,  wdsd, wssd, wmax, rain, pres, t4dv, dlnpob, dewpt
   real(r_kind) tmpk, tdry, qmaxerr, qminerr, alti, qvap, uwind, vwind, relh2, melev, wdir2
@@ -95,16 +98,12 @@ subroutine read_okmeso(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,prsl
   real(r_kind) tsavg,ff10,sfcr,zz
   character(4) stid
   character(80) header
-  
-  ! Data arrays
-  real(r_kind), dimension(maxobs) :: oktemp, okdewpt, okqvap, okuwind, okvwind, okpres, oklon, oklat
-  real(r_kind), dimension(maxobs) :: utime, okelev, okaltm
-  real(r_kind),allocatable,dimension(:,:) :: cdata_all
-  !integer(i_kind),allocatable,dimension(:):: nrec
-  !character(10),  dimension(maxobs) :: okstn
-  integer,  dimension(maxobs) :: okstn
-    
-     
+  character(512) line
+  character(LEN=20) values(12)
+  integer :: current_obs = 5000
+  real(r_kind) :: HHmm
+  character(len=20) :: timestamp
+
   ikx=izero
   write(6,*) 'READ_OK MESONET: START'
   do i=1,nconvtype
@@ -132,7 +131,7 @@ subroutine read_okmeso(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,prsl
      nreal=26 
   else if(obstype == 'oktd') then
      nreal=26  
- endif
+  endif
 
 !Define observation errors reduced by JJH
     toe = 1.0   !K
@@ -147,92 +146,192 @@ subroutine read_okmeso(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,prsl
     usage = zero
     
 ! Set unit variable               
-    iunit = 60    
-
-! ***** READ IN OK MESONET DATA
- open(unit=iunit, file = infile, status = 'old')
- read(iunit,*) ! header
-! get the date info from the file
- read(iunit,'(A50)',END=200) header
- read(header,12) y4, m2, d2
-12 format(5X,I4,2(X,I2))
- write(*,*) 'Date ', y4, m2, d2
-! the time is gathered below - minutes since 00 UTC
- read(iunit,*) ! header  need date and time from here
+    iunit = 60
+    ios = 0
+    offset = 1
 
 ! loop through all of the obs until reaching the end of the file
-nread=0
-nr=0
-obsloop: do
-!  do while (1 .eq. 1)
-    read(iunit,22,END=200) stid, stnm, time, relh, tair, wspd, wvec, wdir, &
-                           wdsd, wssd, wmax, rain, pres
+  nread=0
+  nr=0
 
-22 format(1X,A4,3X,I3,2x,I4,3X,I4,3(1X,F6.1),2X,I4,3(1X,F6.1),1X,F7.2,2X,F7.2)
+  ALLOCATE(oktemp(0:current_obs), okdewpt(0:current_obs), okqvap(0:current_obs), okuwind(0:current_obs), okvwind(0:current_obs), okpres(0:current_obs), STAT=ios)
+  IF (ios /= 0) THEN
+      PRINT *, "Error allocating memory for 1st set of arrays."
+      STOP
+  END IF
+  
+  ALLOCATE(oklon(0:current_obs), oklat(0:current_obs), utime(0:current_obs), okelev(0:current_obs), okaltm(0:current_obs), STAT=ios)
+  IF (ios /= 0) THEN
+      PRINT *, "Error allocating memory for 2st set of arrays."
+      STOP
+  END IF  
+  
+  ALLOCATE(okstn(0:current_obs), STAT=ios)  ! Integer array allocation
+  IF (ios /= 0) THEN
+      PRINT *, "Error allocating memory for 3st set of arrays."
+      STOP
+  END IF
 
-! Given the station id, get the lat, lon, and elevation
-    call get_geo(stid,mlat,mlon,melev)   
-! Convert temp to Kelvin    
-   tmpk = tair + 273.15_r_kind
-! Convert the wind speed and direction to u and v wind components, tair to K
-    if (wspd .lt. 100.0_r_kind) then
-      wdir2 = 1.0_r_kind*wdir
-      call wind_dirspd_to_uv(wdir2, wspd, uwind, vwind)
-    else
-      uwind = -999.9
-      vwind = -999.9
-    endif
-! Convert RH to Qvap  
-    if (relh .gt. 0 .and. relh .le. 100 .and. tmpk .gt. 100_r_kind ) then
-      relh2 = relh/(100.0_r_kind)  
-      call rh_and_temp_to_mixing(relh2, tmpk, pres, qvap)
-    else
-      qvap = -999.9
-    endif
-! Convert RH to Dewpoint
-    if (relh .gt. 0 .and. relh .le. 100 .and. tmpk .gt. 100_r_kind ) then
-      relh2 = relh/(100.0_r_kind)  
-      call rh_and_temp_to_dewpoint(relh2, tmpk, dewpt)
-    else
-      dewpt = -999.9
-    endif     
-    
-! compute surface altimeter
-    call compute_altimeter(pres, melev, alti)   ! pres hPa and elev in m
- 
-   
-! convert time to UTC
-    h2 = time/60
-    n2 = time - h2*60
-    tobs = h2*100 + n2
-    s2 = 0
+  ! This is a CSV file that already has lat/lons builtin. 
+  IF (INDEX(infile, ".csv") > 0) THEN
 
-    
-!write(*,*) stid, mlat, mlon, melev, tobs, relh, tair, wdir, uwind, vwind, pres, alti, qvap
-!    nlon = -nlon  
-    if ( mlon < 0.0 )  mlon = mlon + 360.0
+      OPEN(unit=iunit, FILE=infile, STATUS="OLD", ACTION="READ", IOSTAT=ios)
+      
+      IF (ios /= 0) THEN
+          PRINT *, "Error opening file."
+          STOP
+      END IF
+
+      i = 0
+      DO WHILE (.NOT. EOF(iunit))
+        READ(iunit, '(A)', IOSTAT=ios) line
+        IF (ios /= 0) EXIT
+        
+        i = i + 1
+
+        ! Skip the header row
+        IF (i <= offset) CYCLE
+
+        CALL ParseCSV(line, values, 12)
+
+        ! Read these lines directly into the arrays
+        READ(values(1), '(A20)', IOSTAT=ios) timestamp
+        call parse_HHmm(timestamp, HHmm)
+        utime(nr) = HHmm
+
+        !READ(values(2), '(I10)', IOSTAT=ios) okstn(nr)
+        okstn(nr) = 999
+
+        READ(values(3), '(F10.3)', IOSTAT=ios) okelev(nr)
+        READ(values(4), '(F10.3)', IOSTAT=ios) oklat(nr)
+        READ(values(5), '(F10.3)', IOSTAT=ios) oklon(nr)
+        READ(values(6), '(F10.3)', IOSTAT=ios) okaltm(nr)
+        READ(values(7), '(F10.3)', IOSTAT=ios) pres
+        okpres(nr) = pres/10.0
+
+        ! Convert temp to Kelvin
+        READ(values(8), '(F10.3)', IOSTAT=ios) tmpk
+        oktemp(nr) = tmpk + 273.15_r_kind
+      
+        READ(values(9), '(F10.3)', IOSTAT=ios) okdewpt(nr)
+        READ(values(10), '(F10.3)', IOSTAT=ios) relh2
+        READ(values(11), '(F10.3)', IOSTAT=ios) wspd
+        READ(values(12), '(F10.3)', IOSTAT=ios) wdir
+
+        ! Convert the wind speed and direction to u and v wind components, tair to K
+        if (wspd .lt. 100.0_r_kind) then
+          wdir2 = 1.0_r_kind*wdir
+          call wind_dirspd_to_uv(wdir2, wspd, uwind, vwind)
+        else
+          uwind = -999.9
+          vwind = -999.9
+        endif
+
+        ! Convert RH to Qvap  
+        if (relh2 .gt. 0 .and. relh2 .le. 100 .and. oktemp(nr) .gt. 100_r_kind ) then
+          relh2 = relh2/(100.0_r_kind)  
+          call rh_and_temp_to_mixing(relh2, oktemp(nr), pres, qvap)
+        else
+          qvap = -999.9
+        endif
+
+        okqvap(nr) = qvap
+        okuwind(nr) = uwind
+        okvwind(nr) = vwind
+
+        ! PRINT *, utime(nr), okstn(nr), okelev(nr), oklat(nr), oklon(nr), okaltm(nr), okpres(nr), oktemp(nr), okdewpt(nr), okqvap(nr), okuwind(nr), okvwind(nr)
+
+        nr = nr+1
+        nread = nread+1
+      END DO
+
+      CLOSE(iunit)
+
+      PRINT *, "CSV observations file successfully read."
+
+  ! Standard OK Mesonet file
+  ELSE
+    ! ***** READ IN OK MESONET DATA
+    open(unit=iunit, file = infile, status = 'old')
+    read(iunit,*) ! header
+    ! get the date info from the file
+    read(iunit,'(A50)',END=200) header
+    read(header,12) y4, m2, d2
+    12 format(5X,I4,2(X,I2))
+    write(*,*) 'Date ', y4, m2, d2
+    ! the time is gathered below - minutes since 00 UTC
+    read(iunit,*) ! header  need date and time from here
+
+    obsloop: do
+    !  do while (1 .eq. 1)
+        read(iunit,22,END=200) stid, stnm, time, relh, tair, wspd, wvec, wdir, &
+                              wdsd, wssd, wmax, rain, pres
+
+    22 format(1X,A4,3X,I3,2x,I4,3X,I4,3(1X,F6.1),2X,I4,3(1X,F6.1),1X,F7.2,2X,F7.2)
+
+    ! Given the station id, get the lat, lon, and elevation
+        call get_geo(stid,mlat,mlon,melev)   
+    ! Convert temp to Kelvin    
+      tmpk = tair + 273.15_r_kind
+    ! Convert the wind speed and direction to u and v wind components, tair to K
+        if (wspd .lt. 100.0_r_kind) then
+          wdir2 = 1.0_r_kind*wdir
+          call wind_dirspd_to_uv(wdir2, wspd, uwind, vwind)
+        else
+          uwind = -999.9
+          vwind = -999.9
+        endif
+    ! Convert RH to Qvap  
+        if (relh .gt. 0 .and. relh .le. 100 .and. tmpk .gt. 100_r_kind ) then
+          relh2 = relh/(100.0_r_kind)  
+          call rh_and_temp_to_mixing(relh2, tmpk, pres, qvap)
+        else
+          qvap = -999.9
+        endif
+    ! Convert RH to Dewpoint
+        if (relh .gt. 0 .and. relh .le. 100 .and. tmpk .gt. 100_r_kind ) then
+          relh2 = relh/(100.0_r_kind)  
+          call rh_and_temp_to_dewpoint(relh2, tmpk, dewpt)
+        else
+          dewpt = -999.9
+        endif     
+        
+    ! compute surface altimeter
+        call compute_altimeter(pres, melev, alti)   ! pres hPa and elev in m
+
+        ! convert time to UTC
+        h2 = time/60
+        n2 = time - h2*60
+        tobs = h2*100 + n2
+        s2 = 0
+
+    !write(*,*) stid, mlat, mlon, melev, tobs, relh, tair, wdir, uwind, vwind, pres, alti, qvap
+    !    nlon = -nlon  
+        if ( mlon < 0.0 )  mlon = mlon + 360.0
 
 
-!Save everything into arrays
-    oktemp(nr) = tmpk
-    okdewpt(nr) = dewpt
-    okuwind(nr) = uwind
-    okvwind(nr) = vwind
-    okqvap(nr) = qvap
-    okpres(nr) = pres/10.0  !convert hpa to cb
-    utime(nr) = tobs
-    okelev(nr) = melev
-    !okstn(nr) = stid
-    okstn(nr) = stnm
-    okaltm(nr) = alti
-    oklat(nr) = mlat
-    oklon(nr) = mlon
-    
-    nr = nr+1
-    nread = nread+1
-  end do obsloop
-200 continue
-close(iunit) 
+    !Save everything into arrays
+        oktemp(nr) = tmpk
+        okdewpt(nr) = dewpt
+        okuwind(nr) = uwind
+        okvwind(nr) = vwind
+        okqvap(nr) = qvap
+        okpres(nr) = pres/10.0  !convert hpa to cb
+        utime(nr) = tobs
+        okelev(nr) = melev
+        !okstn(nr) = stid
+        okstn(nr) = stnm
+        okaltm(nr) = alti
+        oklat(nr) = mlat
+        oklon(nr) = mlon
+        
+        nr = nr+1
+        nread = nread+1
+      end do obsloop
+    200 continue
+    close(iunit) 
+  END IF
+
 
   
 ! ***** BIG LOOP THROUGH OBS
@@ -292,9 +391,10 @@ close(iunit)
                ndata = ndata+1
                iout=ndata
               
+              qtflg = 1 			!VIRTUAL TEMP FLAG: 1 = Sensible Temp; 0= Virt temp
+
   !             Temperature
               if(obstype == 'okt') then
-		 qtflg = 1 			!VIRTUAL TEMP FLAG: 1 = Sensible Temp; 0= Virt temp
                  cdata_all(1,iout)=toe                     ! temperature error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
@@ -437,18 +537,19 @@ close(iunit)
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches                 
-                 
-                              
+
 !---Write observation to scratch file---!
 !  call count_obs(numobs,maxdat,ilat,ilon,cdata_all,nobs)
-print*, 'CALL COUNT OKMESO', ndata,nreal,ilat,ilon,nobs
+  print*, 'CALL COUNT OKMESO', ndata,nreal,ilat,ilon,nobs
   call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,n),k=1,nreal),n=1,ndata)
 
-900 continue
+! 900 continue
 
-   write(6,*)'FINISH READ_OKMESO: ', obstype, ndata, nbad, nobs
+  write(6,*)'FINISH READ_OKMESO: ', obstype, ndata, nbad, nobs
+
+  DEALLOCATE(oktemp, okdewpt, okqvap, okuwind, okvwind, okpres, oklon, oklat, utime, okelev, okaltm, okstn)
 
 ! End of routine
   return
@@ -717,3 +818,62 @@ dptc = 243.5_r_kind / (17.67_r_kind / log(e/es0C) - 1.0_r_kind)
 dewpoint = dptc + Tfrez
 
 end subroutine  rh_and_temp_to_dewpoint   
+
+
+SUBROUTINE ParseCSV(line, values, num_cols)
+    CHARACTER(LEN=512), INTENT(IN) :: line
+    CHARACTER(LEN=20), INTENT(OUT) :: values(num_cols)
+    INTEGER, INTENT(IN) :: num_cols
+    INTEGER :: i, start, count
+
+    start = 1
+    count = 0
+
+    DO i = 1, LEN_TRIM(line)
+        IF (line(i:i) == ',' .OR. i == LEN_TRIM(line)) THEN
+            count = count + 1
+            IF (count <= num_cols) THEN
+                values(count) = line(start:i-1)
+                start = i + 1
+            END IF
+        END IF
+    END DO
+END SUBROUTINE ParseCSV
+
+SUBROUTINE Resize(array, new_size)
+    USE kinds, ONLY: r_kind
+
+    REAL(r_kind), ALLOCATABLE, INTENT(INOUT) :: array(:)
+    INTEGER, INTENT(IN) :: new_size
+    REAL(r_kind), ALLOCATABLE :: temp(:)
+
+    ALLOCATE(temp(new_size))
+    temp(1:MIN(SIZE(array), new_size)) = array(1:MIN(SIZE(array), new_size))
+    CALL MOVE_ALLOC(temp, array)
+END SUBROUTINE Resize
+
+SUBROUTINE ResizeInt(array, new_size)
+  INTEGER, ALLOCATABLE, INTENT(INOUT) :: array(:)
+  INTEGER, INTENT(IN) :: new_size
+  INTEGER, ALLOCATABLE :: temp(:)
+
+  ALLOCATE(temp(new_size))
+  temp(1:MIN(SIZE(array), new_size)) = array(1:MIN(SIZE(array), new_size))
+  CALL MOVE_ALLOC(temp, array)
+END SUBROUTINE ResizeInt
+
+subroutine parse_HHmm(timestamp, HHmm)
+  USE kinds, ONLY: r_kind
+  implicit none
+
+  character(len=*), intent(in) :: timestamp
+  REAL(r_kind), intent(out) :: HHmm
+  integer :: hour, minute
+
+  ! Extract hour and minute
+  read(timestamp(12:13), '(I2)') hour
+  read(timestamp(15:16), '(I2)') minute
+
+  ! Convert to HHmm format
+  HHmm = REAL(hour * 100 + minute)
+end subroutine parse_HHmm
