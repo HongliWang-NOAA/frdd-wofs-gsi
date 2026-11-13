@@ -86,7 +86,6 @@ real(r_double) t1,t2
 integer(i_kind) nanal,nn,i,n,nb,nlev
 ! npts,nlevs,ntrac arrays
 integer(i_kind) ierr, np
-
 ! must at least nanals tasks allocated.
 if (numproc < nanals) then
   print *,'need at least nanals =',nanals,'MPI tasks, exiting ...'
@@ -228,7 +227,7 @@ real(r_single), allocatable, dimension(:,:,:) :: ensmean
 real(r_double) t1,t2
 integer(i_kind) nanal,i,nvar
 integer(i_kind) ierr, np, n, nn, nb
-
+integer(i_kind) ntotal_elements
 ! all tasks send data, but only IO tasks receive any data.
 ! scounts is number of data elements to send to processor np.
 ! rcounts is number of data elements to recv from processor np.
@@ -326,10 +325,14 @@ do nb=1,nbackgrounds
       if (massbal_adjust) then
         print *,'ens. mean anal. increment min/max ps tend', minval(ensmean(:,ndim-1,nb)),maxval(ensmean(:,ndim-1,nb))
       endif 
-      print *,'ens. mean anal. increment min/max ps', minval(ensmean(:,ndim,nb)),maxval(ensmean(:,ndim,nb))
+      ntotal_elements = size(ensmean(:,ndim,nb))
+      print *,'ens. mean anal. increment min/max/mean ps', &
+      minval(ensmean(:,ndim,nb)),maxval(ensmean(:,ndim,nb)),sum(ensmean(:,ndim,nb))/ntotal_elements
       do nvar=1,nvars
-         print *,'ens. mean anal. increment min/max var',nvar, &
-           minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
+         ntotal_elements = size(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))
+         print *,'ens. mean anal. increment min/max/mean var',nvar, &
+           minval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)),maxval(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb)), & 
+           sum(ensmean(:,(nvar-1)*nlevs+1:nvar*nlevs,nb))/ntotal_elements
       enddo
    end if
 enddo ! end loop over time levels in background

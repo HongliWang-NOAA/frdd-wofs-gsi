@@ -436,7 +436,7 @@ NETCDF_PATH    =  -LCONFIGURE_NETCDF_PATH/lib
 #ARCH	Linux i486 i586 i686, Intel compiler (ifort & icc) # (dmpar,optimize)
 #
 LDFLAGS        =  -Wl,-noinhibit-exec
-OMP            =  -openmp
+OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
@@ -490,7 +490,7 @@ NETCDF_PATH    =
 #ARCH	Linux x86_64, Intel/gnu compiler (ifort & gcc)	# (dmpar,optimize)
 #
 LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
-OMP            =  -openmp
+OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
@@ -544,7 +544,7 @@ NETCDF_PATH    =
 #ARCH	Linux x86_64, Intel compiler (ifort & icc) # (dmpar,optimize)
 #
 LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
-OMP            = -openmp
+OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
@@ -599,7 +599,7 @@ NETCDF_PATH    =
 #ARCH	Linux x86_64, Intel compiler (ifort & icc), IBM POE (EXPERIMENTAL)  # (dmpar,optimize)
 #
 LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib -L$MPI_ROOT/lib
-OMP            =  -openmp
+OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
@@ -653,7 +653,7 @@ NETCDF_PATH    =
 #ARCH	Linux x86_64, Intel compiler (ifort & icc), SGI MPT (EXPERIMENTAL) # (dmpar,optimize) 
 #
 LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib -L$MPI_ROOT/lib -lmpi
-OMP            =  -openmp
+OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort

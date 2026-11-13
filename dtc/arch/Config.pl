@@ -116,7 +116,7 @@ printf "------------------------------------------------------------------------
 $optchoice = $response ;
 if ($response <=4 ) { config_omp('  OMP = -mp')} #PGI
 if ($response ==5 ) { config_omp('  OMP = -fopenmp')}    #GNU
-if ($response >=6 ) { config_omp('  OMP = -openmp -qopenmp')}  #INTEL
+if ($response >=6 ) { config_omp('  OMP = -qopenmp')}  #INTEL
 
 open CONFIGURE_DEFAULTS, "< ./arch/configure.defaults" 
       or die "Cannot open ./arch/configure.defaults for reading" ;

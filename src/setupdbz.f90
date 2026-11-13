@@ -386,6 +386,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
      ! IF l_model_dbz = true THEN INTERPOLATE FROM MODEL REFLECTIVITY (external method)
+     ! print*,"l_model_dbz .and. refltype= ",l_model_dbz, refltype
      if( l_model_dbz .and. refltype .eq. 5 ) then
        ! Interpolate guess reflectivity to observation location and time.
        call tintrp31(ges_dbz,dbzgesin,dlat,dlon,dpres,dtime,&

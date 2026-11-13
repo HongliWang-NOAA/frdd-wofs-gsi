@@ -167,7 +167,7 @@ contains
     if (nanal .ge. 100) write(charnanal2,'(i3.0)') nanal
 !    filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
     filename = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//charnanal2
-!    print*, 'in filemane: ', filename, charnanal2, nanal
+    !print*, 'in filename: ', filename, charnanal2, nanal
 
     !----------------------------------------------------------------------
 
@@ -180,6 +180,7 @@ contains
        ! Define staggering attributes for variable grid
 
        attstr = 'stagger'
+       !print*, "Read in VAR: ", l, gridvarstring(l)
        call variableattribute_char(filename,gridvarstring(l),attstr,        &
             & varstagger)
 

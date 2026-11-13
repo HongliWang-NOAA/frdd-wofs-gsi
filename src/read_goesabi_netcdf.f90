@@ -296,6 +296,8 @@ status = nf90_close( ncdfID )
 ! SAT ID
   if(jsatid == 'g16') kidsat = 260
   if(jsatid == 'g17') kidsat = 261
+  if(jsatid == 'g18') kidsat = 262
+  if(jsatid == 'g19') kidsat = 263
 
 ! Allocate arrays to hold all data for given satellite
   if(dval_use) maxinfo = maxinfo + 2

@@ -138,7 +138,7 @@ PROGRAM read_diag_rad
 
    read(17) isis,dplat,obstype,jiter,nchanl,npred,idate,ireal,ipchan,iextra,jextra
    write(12,'(3a20)') isis,dplat,obstype
-   write(12,'(8I10)') jiter,nchanl,npred,idate,ireal,ipchan,iextra,jextra
+   write(12,'(3I5,1x,7I10)') jiter,nchanl,npred,idate,ireal,ipchan,iextra,jextra
 
    allocate(ich(nchanl))
    do i=1,nchanl
@@ -146,8 +146,12 @@ PROGRAM read_diag_rad
       write(12,'(a,I3,5f10.3,3I5)') 'nchanl=',i,freq4,pol4,wave4,varch4,tlap4,& 
                                     iuse_rad,nuchan,ich(i)
    end do
+   print*,"Wang: ",ipchan+npred+2,nchanl,ireal
+   ! setuprad.f90
+   !  idiag=ipchan_radiag+npred+2
+   !allocate(diagbufchan(idiag,nchanl_diag))
 
-   allocate(diagbufchan(ipchan+npred+1,nchanl))
+   allocate(diagbufchan(ipchan+npred+2,nchanl))
    allocate(diagbuf(ireal))
 
 100  continue
@@ -158,8 +162,12 @@ PROGRAM read_diag_rad
         rdhr=diagbuf(4)     ! obs time (hours relative to analysis time)
 !
 !  write out result for one observation
-         write (12,'(4F8.2)') rlat,rlon,rprs,rdhr
-!         write (12,*) diagbuf,diagbufchan
+!         write (12,'(4F8.2)') rlat,rlon,rprs,rdhr
+     write (12,'(3F8.2)') rlat,rlon,rprs
+     do i=1,nchanl 
+        write (12,'(I3,21F8.2)')i,diagbufchan(:,i)
+        write(1012,'(I3,9F8.2)')i+6, rlat,rlon,rprs,rdhr,diagbufchan(1:5,i)
+     end do
 
      goto 100  ! goto another record
 
