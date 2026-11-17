@@ -20,104 +20,79 @@ elif [ "${REMOTEHOST:0:11}" == "bastion-jet"  ] ; then
 fi
   echo " "
 
-# Look for netcdf
-if test -z "$NETCDF" ; then
-  for p in /usr/local/netcdf
-  do
-    if test -d $p ; then
-      NETCDF=$p
-      break
+# ============================================================
+# NetCDF configuration
+# ============================================================
+
+# NetCDF-C
+if [ -z "${NETCDF:-}" ]; then
+    if command -v nc-config >/dev/null 2>&1; then
+        NETCDF=$(nc-config --prefix)
     fi
-  done
 fi
 
-if  test -z "$NETCDF"  ; then
- 
-    bedone=""
-    if [ -d ./netcdf_links ] ; then
-      echo '** There is an existing ./netcdf_links file. Should I use? [y]'
-      read resp
-      if [ "$resp" = "y" ] ; then
-        NETCDF=`pwd`/netcdf_links
-        bedone="yes"
-      else
-        echo 'Removing existing ./netcdf_links directory'
-        /bin/rm -fr ./netcdf_links
-      fi
-    else
-      echo '** WARNING: No path to NETCDF and environment variable NETCDF not set.'
-      echo '** would you like to try to fix? [y]'
+if [ -z "${NETCDF:-}" ] || [ ! -d "$NETCDF/include" ]; then
+    echo "ERROR: NetCDF-C installation not found."
+    echo "Please load the NetCDF-C module."
+    exit 1
+fi
+
+# NetCDF-Fortran
+if [ -z "${NETCDF_FORTRAN:-}" ]; then
+    if command -v nf-config >/dev/null 2>&1; then
+        NETCDF_FORTRAN=$(nf-config --prefix)
     fi
-    netcdfipath=""
-    netcdflpath=""
-    while [ -z "$bedone" ] ; do 
-      read resp
-      if [ "$resp" = "y" -o -z "$resp" ]  ; then
-        if [ -d ./netcdf_links ] ; then
-          echo 'There is already a ./netcdf_links directory. Okay to use links'
-          echo 'in this directory for NetCDF include and lib dirs? [y]'
-          read resp
-          if [ "$resp" = "y" ] ; then
-            NETCDF=`pwd`/netcdf_links
-            export NETCDF
-            bedone="yes"
-            continue
-          fi
-        fi
-        if [ -z "$netcdfipath" ] ; then
-          echo 'Enter full path to NetCDF include directory on your system'
-          read resp
-          if [ ! -d "$resp" ] ; then
-            echo "invalid path: $resp. Try again? [y]" ; continue
-          fi
-          netcdfipath=$resp
-        fi
-        if  [ -z "$netcdflpath" ] ; then
-          echo 'Enter full path to NetCDF library directory on your system'
-          read resp
-          if [ ! -d "$resp" ] ; then
-            echo "invalid path: $resp. Try again? [y]" ; continue
-          fi
-          netcdflpath=$resp
-        fi
-
-        if [ -n "$netcdflpath" -a -n "$netcdfipath" ] ; then
-          if [ -d ./netcdf_links ] ; then
-            echo 'Existing ./netcdf_links directory. Okay to remove. [y]'
-            read resp
-            if [ "$resp" = "y" ]  ; then
-              /bin/rm -fr ./netcdf_links
-            fi
-          fi
-          mkdir ./netcdf_links
-          cd ./netcdf_links 
-            ln -s "$netcdfipath" include
-            ln -s "$netcdflpath" lib
-          cd ..
-          echo created new ./netcdf_links directory
-          /bin/ls -lF ./netcdf_links
-          NETCDF=`pwd`/netcdf_links
-          export NETCDF
-          bedone="yes"
-        fi
-      else
-        bedone="yes"
-      fi
-    done
 fi
 
-USENETCDFF=""  # see below
-if [ -n "$NETCDF" ] ; then
-  echo "Will use NETCDF in dir: $NETCDF"
-# for 3.6.2 and greater there might be a second library, libnetcdff.a .  Check for this and use
-# if available
-  if [ -f "$NETCDF/lib/libnetcdff.a" ] ; then
-    USENETCDFF="-lnetcdff"
-  fi
-else
-  echo "NETCDF is required to compile GSI; please re-configure and try again"
-  exit
+if [ -z "${NETCDF_FORTRAN:-}" ] || \
+   [ ! -d "$NETCDF_FORTRAN/include" ]; then
+    echo "ERROR: NetCDF-Fortran installation not found."
+    echo "Please load the NetCDF-Fortran module."
+    exit 1
 fi
+
+# Check NetCDF libraries
+NETCDF_C_LIB=""
+NETCDF_FORTRAN_LIB=""
+
+for d in "$NETCDF/lib" "$NETCDF/lib64"; do
+    if [ -f "$d/libnetcdf.so" ] || [ -f "$d/libnetcdf.a" ]; then
+        NETCDF_C_LIB="$d"
+        break
+    fi
+done
+
+for d in "$NETCDF_FORTRAN/lib" "$NETCDF_FORTRAN/lib64"; do
+    if [ -f "$d/libnetcdff.so" ] || [ -f "$d/libnetcdff.a" ]; then
+        NETCDF_FORTRAN_LIB="$d"
+        break
+    fi
+done
+
+if [ -z "$NETCDF_C_LIB" ]; then
+    echo "ERROR: NetCDF-C library not found."
+    exit 1
+fi
+
+if [ -z "$NETCDF_FORTRAN_LIB" ]; then
+    echo "ERROR: NetCDF-Fortran library not found."
+    exit 1
+fi
+
+USENETCDFF="-lnetcdff"
+
+export NETCDF
+export NETCDF_FORTRAN
+export USENETCDFF
+
+echo "================================================"
+echo " NetCDF Configuration"
+echo "================================================"
+echo " NetCDF-C       : $NETCDF"
+echo " NetCDF-C lib   : $NETCDF_C_LIB"
+echo " NetCDF-Fortran : $NETCDF_FORTRAN"
+echo " Fortran lib    : $NETCDF_FORTRAN_LIB"
+echo "================================================"
 
 # Look for wrf libs
 if test -z "$WRF_DIR" ; then
@@ -188,5 +163,17 @@ if [ $? -eq 0 ] ; then
     fi
 fi
 
+#echo "DEBUG: NETCDF=$NETCDF"
+#echo "DEBUG: NETCDF_FORTRAN=$NETCDF_FORTRAN"
+#echo "DEBUG: USENETCDFF=$USENETCDFF"
+
 # so proceed with configuration
-perl arch/Config.pl  -corepath=$CORE_DIR -wrfpath=$WRF_DIR -netcdf=$NETCDF -USENETCDFF=$USENETCDFF -os=$os -mach=$mach 
+perl arch/Config.pl \
+    -corepath="$CORE_DIR" \
+    -wrfpath="$WRF_DIR" \
+    -netcdf="$NETCDF" \
+    -netcdffpath="$NETCDF_FORTRAN" \
+    -USENETCDFF="$USENETCDFF" \
+    -os="$os" \
+    -mach="$mach"
+#perl arch/Config.pl  -corepath=$CORE_DIR -wrfpath=$WRF_DIR -netcdf=$NETCDF -USENETCDFF=$USENETCDFF -os=$os -mach=$mach 

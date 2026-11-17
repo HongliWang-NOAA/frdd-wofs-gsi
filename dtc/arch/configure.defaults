@@ -6,7 +6,11 @@ INC_DIR        =  $(COREDIR)/include
 SFC            =  xlf_r 
 SF90           =  xlf90  -qfree
 SCC            =  xlc_r
-INC_FLAGS      =  -qmoddir=$(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+#INC_FLAGS      =  -qmoddir=$(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+INC_FLAGS = -module $(INC_DIR) \
+            -I $(INC_DIR) \
+            -I CONFIGURE_NETCDF_PATH/include \
+            -I CONFIGURE_NETCDF_FORTRAN_PATH/include
 FFLAGS_i4r4    =  -qintsize=4 -qrealsize=4
 FFLAGS_i4r8    =  -qintsize=4 -qrealsize=8
 FFLAGS_i8r8    =  -qintsize=8 -qrealsize=8
@@ -435,14 +439,23 @@ NETCDF_PATH    =  -LCONFIGURE_NETCDF_PATH/lib
 ###########################################################
 #ARCH	Linux i486 i586 i686, Intel compiler (ifort & icc) # (dmpar,optimize)
 #
-LDFLAGS        =  -Wl,-noinhibit-exec
+#LDFLAGS        =  -Wl,-noinhibit-exec
+LDFLAGS = -Wl,-noinhibit-exec \
+          -LCONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -LCONFIGURE_NETCDF_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
 OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
 SF90           =  ifort -free
 SCC            =  icc
-INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+#INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+INC_FLAGS = -module $(INC_DIR) \
+            -I $(INC_DIR) \
+            -I CONFIGURE_NETCDF_PATH/include \
+            -I CONFIGURE_NETCDF_FORTRAN_PATH/include
 FFLAGS_i4r4    =  -integer-size 32 -real-size 32
 FFLAGS_i4r8    =  -integer-size 32 -real-size 64
 FFLAGS_i8r8    =  -integer-size 64 -real-size 64
@@ -489,14 +502,22 @@ NETCDF_PATH    =
 ###########################################################
 #ARCH	Linux x86_64, Intel/gnu compiler (ifort & gcc)	# (dmpar,optimize)
 #
-LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
+LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib \
+          -LCONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -LCONFIGURE_NETCDF_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
 OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
 SF90           =  ifort -free
 SCC            =  gcc
-INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+#INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+INC_FLAGS = -module $(INC_DIR) \
+            -I $(INC_DIR) \
+            -I CONFIGURE_NETCDF_PATH/include \
+            -I CONFIGURE_NETCDF_FORTRAN_PATH/include
 FFLAGS_i4r4    =  -integer-size 32 -real-size 32
 FFLAGS_i4r8    =  -integer-size 32 -real-size 64
 FFLAGS_i8r8    =  -integer-size 64 -real-size 64
@@ -543,14 +564,23 @@ NETCDF_PATH    =
 ###########################################################
 #ARCH	Linux x86_64, Intel compiler (ifort & icc) # (dmpar,optimize)
 #
-LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
+#LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
+LDFLAGS = -Wl,-noinhibit-exec \
+          -LCONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -LCONFIGURE_NETCDF_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
 OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
 SF90           =  ifort -free
 SCC            =  icc
-INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+#INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+INC_FLAGS      = -module $(INC_DIR) \
+                -I $(INC_DIR) \
+                -I CONFIGURE_NETCDF_PATH/include \
+                -I CONFIGURE_NETCDF_FORTRAN_PATH/include
 FFLAGS_i4r4    =  -integer-size 32 -real-size 32
 FFLAGS_i4r8    =  -integer-size 32 -real-size 64
 FFLAGS_i8r8    =  -integer-size 64 -real-size 64
@@ -598,14 +628,22 @@ NETCDF_PATH    =
 ###########################################################
 #ARCH	Linux x86_64, Intel compiler (ifort & icc), IBM POE (EXPERIMENTAL)  # (dmpar,optimize)
 #
-LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib -L$MPI_ROOT/lib
+LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib -L$MPI_ROOT/lib \
+          -LCONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -LCONFIGURE_NETCDF_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
 OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
 SF90           =  ifort -free
 SCC            =  icc
-INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+#INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+INC_FLAGS = -module $(INC_DIR) \
+            -I $(INC_DIR) \
+            -I CONFIGURE_NETCDF_PATH/include \
+            -I CONFIGURE_NETCDF_FORTRAN_PATH/include
 FFLAGS_i4r4    =  -integer-size 32 -real-size 32
 FFLAGS_i4r8    =  -integer-size 32 -real-size 64
 FFLAGS_i8r8    =  -integer-size 64 -real-size 64
@@ -652,14 +690,22 @@ NETCDF_PATH    =
 ###########################################################
 #ARCH	Linux x86_64, Intel compiler (ifort & icc), SGI MPT (EXPERIMENTAL) # (dmpar,optimize) 
 #
-LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib -L$MPI_ROOT/lib -lmpi
+LDFLAGS        =  -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib -L$MPI_ROOT/lib -lmpi \
+          -LCONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -LCONFIGURE_NETCDF_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_FORTRAN_PATH/lib \
+          -Wl,-rpath,CONFIGURE_NETCDF_PATH/lib
 OMP            =  -qopenmp
 COREDIR        =  CONFIGURE_CORE_PATH
 INC_DIR        =  $(COREDIR)/include
 SFC            =  ifort
 SF90           =  ifort -free
 SCC            =  icc
-INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+#INC_FLAGS      =  -module $(INC_DIR) -I $(INC_DIR) -I CONFIGURE_NETCDF_PATH/include
+INC_FLAGS = -module $(INC_DIR) \
+            -I $(INC_DIR) \
+            -I CONFIGURE_NETCDF_PATH/include \
+            -I CONFIGURE_NETCDF_FORTRAN_PATH/include
 FFLAGS_i4r4    =  -integer-size 32 -real-size 32
 FFLAGS_i4r8    =  -integer-size 32 -real-size 64
 FFLAGS_i8r8    =  -integer-size 64 -real-size 64

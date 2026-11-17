@@ -6,6 +6,7 @@
 #
 select((select(STDOUT), $|=1)[0]);
 $sw_netcdf_path = "" ;
+$sw_netcdf_fortran_path = "" ;
 $sw_wrf_path = "" ;
 $sw_core_path = "" ;
 $sw_os = "ARCH" ;           # ARCH will match any
@@ -25,6 +26,10 @@ while ( substr( $ARGV[0], 0, 1 ) eq "-" )
   if ( substr( $ARGV[0], 1, 7 ) eq "netcdf=" )
   {
     $sw_netcdf_path = substr( $ARGV[0], 8 ) ;
+  }
+  if ( substr( $ARGV[0], 1, 12 ) eq "netcdffpath=" )
+  {
+    $sw_netcdf_fortran_path = substr( $ARGV[0], 13 ) ;
   }
   if ( substr( $ARGV[0], 1, 9 ) eq "corepath=" )
   {
@@ -132,6 +137,7 @@ while ( <CONFIGURE_DEFAULTS> )
   {
     $_ =~ s/CONFIGURE_NETCDF_PATH/$sw_netcdf_path/g ;
     $_ =~ s/CONFIGURE_NETCDF_LIBS/$sw_usenetcdff -lnetcdf/g ;
+    $_ =~ s/CONFIGURE_NETCDF_FORTRAN_PATH/$sw_netcdf_fortran_path/g ;
     $_ =~ s/CONFIGURE_WRF_PATH/$sw_wrf_path/g ;
     $_ =~ s/CONFIGURE_CORE_PATH/$sw_core_path/g ;
     $_ =~ s/CONFIGURE_FC/$sw_fc/g ;
@@ -220,6 +226,7 @@ open ARCH_POSTAMBLE, "< arch/postamble.hwrf" or die "cannot open arch/postamble.
 }
 while ( <ARCH_POSTAMBLE> ) { 
     $_ =~ s/CONFIGURE_NETCDF_PATH/$sw_netcdf_path/g ;
+    $_ =~ s/CONFIGURE_NETCDF_FORTRAN_PATH/$sw_netcdf_fortran_path/g ;
     $_ =~ s/CONFIGURE_NETCDF_LIBS/$sw_usenetcdff -lnetcdf/g ;
     $_ =~ s/CONFIGURE_WRF_PATH/$sw_wrf_path/g ;
     $_ =~ s/CONFIGURE_GRIB2_LIBS/$sw_grib2_libs/g ;
